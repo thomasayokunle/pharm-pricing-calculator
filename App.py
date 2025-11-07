@@ -13,15 +13,16 @@ st.set_page_config(page_title="D-Rock Pharmacy Pricing Calculator", layout="wide
 # --- HEADER ---
 st.title("Pharmacy Pricing Calculator")
 st.markdown("""
-This calculator estimates and compares pricing scenarios for pharmacy departments.  
-It helps you understand how pricing, OPEX, and volume affect overall profitability.
+This calculator estimates and compares pricing scenarios for Pharmacy Departments.  
+It helps you understand how markup, OPEX, and volume growth affect profitability.
 """)
 
 # --- GOOGLE SHEET SETUP ---
-SHEET_ID = "1VAHAw4KVWuo-tP_rDlx3h_oYwypOodiJuZzhSYiX2v4"  # your live sheet ID
+SHEET_ID = "1VAHAw4KVWuo-tP_rDlx3h_oYwypOodiJuZzhSYiX2v4"
+SHEET_NAME = "PHARMACY"
 
 def load_sheet(sheet_name):
-    """Loads a Google Sheet as CSV and converts numeric columns safely."""
+    """Loads a Google Sheet as CSV and cleans numeric fields."""
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
     df = pd.read_csv(url)
     df.columns = df.columns.str.strip().str.upper()
@@ -29,102 +30,129 @@ def load_sheet(sheet_name):
         df[col] = pd.to_numeric(df[col], errors="ignore")
     return df
 
+# --- LOAD DATA ---
+df = load_sheet(SHEET_NAME)
+
+# --- CLEAN OPEX COLUMN ---
+if "OPEX%" in df.columns:
+    df["OPEX%"] = pd.to_numeric(df["OPEX%"], errors="coerce")
+    if df["OPEX%"].notna().any():
+        df["OPEX%"] = df["OPEX%"].fillna(df["OPEX%"].mean())
+    else:
+        df["OPEX%"] = 25.0
+else:
+    df["OPEX%"] = 25.0
+
 # --- SIDEBAR CONTROLS ---
 st.sidebar.header("Simulation Controls")
 
 # Select from the DEPARTMENTS column
 department = st.sidebar.selectbox("Select Department", df["DEPARTMENTS"].unique())
 markup = st.sidebar.slider("Markup Multiplier (×)", 1.0, 5.0, 1.5, 0.1)
-volume_growth = st.sidebar.slider("Volume Growth (%)", -50, 200, 0, 10)
-opex_increase_rate = st.sidebar.slider("OPEX Sensitivity (%)", 0, 100, 10, 5)
+volume_growth = st.sidebar.slider("Projected Volume Growth (%)", -50, 200, 20, 5)
+opex_increase_rate = st.sidebar.slider("OPEX Volume Sensitivity (%)", 0, 100, 10, 5)
 
-# --- LOAD DATA ---
-df = load_sheet(department)
+# --- FILTER SELECTED DEPARTMENT ---
+dept_data = df[df["DEPARTMENTS"] == department].iloc[0]
 
-required_cols = ["DEPARTMENT", "REVENUE", "COGS", "OPEX%"]
-for col in required_cols:
-    if col not in df.columns:
-        st.error(f"Missing required column: {col}")
-        st.stop()
+revenue = float(dept_data["REVENUE"])
+cogs = float(dept_data["COGS"])
+opex_percent = float(dept_data["OPEX%"]) / 100
 
-# --- GLOBAL CALCULATIONS ---
-df["OPEX%"] = df["OPEX%"].fillna(df["OPEX%"].mean())
-df["OPEX"] = df["REVENUE"] * (df["OPEX%"] / 100)
-df["GROSS_PROFIT"] = df["REVENUE"] - df["COGS"]
-df["EBITDA"] = df["GROSS_PROFIT"] - df["OPEX"]
-df["MARGIN (%)"] = (df["EBITDA"] / df["REVENUE"]) * 100
+# --- HELPER FUNCTION ---
+def round100(value):
+    try:
+        return int(math.ceil(value / 100.0)) * 100
+    except:
+        return 0
 
-# Simulate Markup, Volume, and OPEX Sensitivity
-df["PROPOSED_REVENUE"] = df["REVENUE"] * markup * (1 + (volume_growth / 100))
-df["PROPOSED_COGS"] = df["COGS"] * (1 + (volume_growth / 100))
-df["PROPOSED_OPEX"] = (df["PROPOSED_REVENUE"] * (df["OPEX%"] / 100)) * (1 + (opex_increase_rate / 100))
-df["PROPOSED_GROSS_PROFIT"] = df["PROPOSED_REVENUE"] - df["PROPOSED_COGS"]
-df["PROPOSED_EBITDA"] = df["PROPOSED_GROSS_PROFIT"] - df["PROPOSED_OPEX"]
-df["PROPOSED_MARGIN (%)"] = (df["PROPOSED_EBITDA"] / df["PROPOSED_REVENUE"]) * 100
+# --- CURRENT SCENARIO ---
+current_revenue = revenue
+current_cogs = cogs
+current_gross_profit = current_revenue - current_cogs
+current_opex = opex_percent * current_revenue
+current_ebitda = current_gross_profit - current_opex
+current_margin = (current_ebitda / current_revenue) * 100 if current_revenue else 0
+current_net_profit = current_ebitda * 0.85  # post-tax (15% tax assumption)
 
-# --- KPI SUMMARY ---
-total_revenue = df["PROPOSED_REVENUE"].sum()
-total_ebitda = df["PROPOSED_EBITDA"].sum()
-avg_margin = round(df["PROPOSED_MARGIN (%)"].mean(), 1)
-total_departments = len(df)
+# --- PROPOSED SCENARIO ---
+proposed_revenue = current_revenue * markup * (1 + volume_growth / 100)
+proposed_cogs = current_cogs * (1 + volume_growth / 100)
+proposed_gross_profit = proposed_revenue - proposed_cogs
 
-st.subheader(f"{department} Summary")
-kpi_cols = st.columns(4)
-kpi_cols[0].metric("Departments", f"{total_departments}")
-kpi_cols[1].metric("Total Revenue (₦)", f"{total_revenue:,.0f}")
-kpi_cols[2].metric("Total EBITDA (₦)", f"{total_ebitda:,.0f}")
-kpi_cols[3].metric("Average Margin (%)", f"{avg_margin:.1f}%")
+opex_factor = 1 + (opex_increase_rate / 100)
+proposed_opex = opex_percent * proposed_revenue * opex_factor
+proposed_ebitda = proposed_gross_profit - proposed_opex
+proposed_margin = (proposed_ebitda / proposed_revenue) * 100 if proposed_revenue else 0
+proposed_net_profit = proposed_ebitda * 0.85
 
-# --- DATA TABLE ---
-st.subheader("Department Overview")
-preview = df[[
-    "DEPARTMENT", "REVENUE", "COGS", "OPEX%", "EBITDA", "MARGIN (%)",
-    "PROPOSED_REVENUE", "PROPOSED_EBITDA", "PROPOSED_MARGIN (%)"
-]]
+# --- ROUND VALUES ---
+def r100(x): return round100(x)
+current_revenue, proposed_revenue = r100(current_revenue), r100(proposed_revenue)
+current_cogs, proposed_cogs = r100(current_cogs), r100(proposed_cogs)
+current_opex, proposed_opex = r100(current_opex), r100(proposed_opex)
+current_ebitda, proposed_ebitda = r100(current_ebitda), r100(proposed_ebitda)
+current_net_profit, proposed_net_profit = r100(current_net_profit), r100(proposed_net_profit)
+
+# --- COMPARISON TABLE ---
+comparison = pd.DataFrame({
+    "Metric": [
+        "Revenue (₦)", "COGS (₦)", "Gross Profit (₦)",
+        "OPEX (₦)", "EBITDA (₦)", "Profit Margin (%)", "Net Profit (₦)"
+    ],
+    "Current": [
+        current_revenue, current_cogs, current_gross_profit,
+        current_opex, current_ebitda, round(current_margin, 1), current_net_profit
+    ],
+    "Proposed": [
+        proposed_revenue, proposed_cogs, proposed_gross_profit,
+        proposed_opex, proposed_ebitda, round(proposed_margin, 1), proposed_net_profit
+    ],
+    "Change": [
+        proposed_revenue - current_revenue,
+        proposed_cogs - current_cogs,
+        proposed_gross_profit - current_gross_profit,
+        proposed_opex - current_opex,
+        proposed_ebitda - current_ebitda,
+        round(proposed_margin - current_margin, 1),
+        proposed_net_profit - current_net_profit
+    ]
+})
+
+# --- DISPLAY TABLE ---
+st.subheader(f"Pricing Simulation: {department}")
 st.dataframe(
-    preview.style.format({
-        "REVENUE": "{:,.0f}",
-        "COGS": "{:,.0f}",
-        "EBITDA": "{:,.0f}",
-        "MARGIN (%)": "{:,.1f}",
-        "PROPOSED_REVENUE": "{:,.0f}",
-        "PROPOSED_EBITDA": "{:,.0f}",
-        "PROPOSED_MARGIN (%)": "{:,.1f}"
+    comparison.style.format({
+        "Current": "{:,.0f}",
+        "Proposed": "{:,.0f}",
+        "Change": "{:,.0f}"
     }),
     use_container_width=True
 )
 
-# --- ANALYTICAL SUMMARY BLOCK ---
-current_margin = df["MARGIN (%)"].mean()
-proposed_margin = df["PROPOSED_MARGIN (%)"].mean()
-net_change = proposed_margin - current_margin
-base_opex = df["OPEX"].sum()
-proposed_opex = df["PROPOSED_OPEX"].sum()
-
+# --- ANALYTICAL SUMMARY ---
 st.markdown(f"""
 **Summary Insight**  
-With a markup of **×{markup:.1f}** and **{volume_growth}%** volume change,  
-EBITDA margin improved from **{current_margin:.1f}%** to **{proposed_margin:.1f}%**  
-(**{net_change:+.1f}% change** overall).  
-OPEX increased by **{opex_increase_rate}%** for higher volumes, from  
-₦{base_opex:,.0f} to ₦{proposed_opex:,.0f}.  
-
-**Net Profit Margin:** **{proposed_margin:.1f}%**, reflecting overall profitability after OPEX adjustments.  
+At a markup of **×{markup:.1f}**, and **{volume_growth}%** projected growth,  
+revenue and COGS scale accordingly for the **{department}** department.  
+EBITDA margin shifts from **{current_margin:.1f}%** to **{proposed_margin:.1f}%**,  
+while **Net Profit** rises from **₦{current_net_profit:,.0f}** to **₦{proposed_net_profit:,.0f}**.  
+OPEX increases by **{opex_increase_rate}%** sensitivity as volume grows.
 """)
+st.caption("💡 *Net Profit = EBITDA less 15% tax; Opex Sensitivity models operational scaling.*")
 
-st.caption("💡 *Opex Sensitivity controls how much operating cost grows as volume increases.*")
+# --- VOLUME SIMULATION CHART ---
+st.subheader("Volume Projection (EBITDA Impact)")
 
-# --- EBITDA SENSITIVITY CHART ---
-st.subheader("OPEX Sensitivity Projection")
 projection = pd.DataFrame({
-    "OPEX Sensitivity (%)": range(0, 101, 5),
+    "Volume Growth %": range(-50, 201, 10),
     "EBITDA (₦)": [
-        (df["PROPOSED_GROSS_PROFIT"].sum() - 
-         ((df["PROPOSED_REVENUE"].sum() * (df["OPEX%"].mean() / 100)) * (1 + (r / 100))))
-        for r in range(0, 101, 5)
+        (revenue * markup * (1 + v/100) - cogs * (1 + v/100) -
+         (opex_percent * revenue * markup * (1 + v/100) * (1 + opex_increase_rate / 100)))
+        for v in range(-50, 201, 10)
     ]
 })
-st.line_chart(projection.set_index("OPEX Sensitivity (%)"))
+st.line_chart(projection.set_index("Volume Growth %"))
 
 # --- FOOTER ---
 st.markdown("---")
