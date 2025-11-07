@@ -35,7 +35,7 @@ if missing:
 
 
 # --- CLEAN DATA ---
-df["opex%"] = df["Opex%"].fillna(df["opex%"].mean())
+df["opex%"] = df["opex%"].fillna(df["opex%"].mean())
 df["revenue"] = pd.to_numeric(df["revenue"], errors="coerce")
 df["cogs"] = pd.to_numeric(df["cogs"], errors="coerce")
 df["volume sold"] = pd.to_numeric(df["volume sold"], errors="coerce")
