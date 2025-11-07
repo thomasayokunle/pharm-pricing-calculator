@@ -17,8 +17,9 @@ It helps you visualize how price, cost, and OPEX adjustments affect profitabilit
 """)
 
 # --- LOAD DATA ---
-sheet_url = "https://docs.google.com/spreadsheets/d/1VAHAw4KVWuo-tP_rDlx3h_oYwypOodiJuZzhSYiX2v4/export?format=csv"
+sheet_url = "https://docs.google.com/spreadsheets/d/1VAHAw4KVWuo-tP_rDlx3h_oYwypOodiJuZzhSYiX2v4/export?format=csv&gid=876068924"
 df = pd.read_csv(sheet_url)
+
 # --- CLEAN COLUMN NAMES ---
 df.columns = df.columns.str.strip().str.lower().str.replace(r"[^a-z0-9% ]", "", regex=True)
 
