@@ -19,15 +19,19 @@ It helps you visualize how price, cost, and OPEX adjustments affect profitabilit
 # --- LOAD DATA ---
 sheet_url = "https://docs.google.com/spreadsheets/d/1VAHAw4KVWuo-tP_rDlx3h_oYwypOodiJuZzhSYiX2v4/export?format=csv"
 df = pd.read_csv(sheet_url)
-
 # --- CLEAN COLUMN NAMES ---
-df.columns = df.columns.str.strip()
+df.columns = df.columns.str.strip().str.lower().str.replace(r"[^a-z0-9% ]", "", regex=True)
 
-required_cols = ["Departments", "Revenue", "COGS", "Volume Sold", "Opex%"]
+# Expected lowercase columns
+required_cols = ["departments", "revenue", "cogs", "volume sold", "opex%"]
+
 missing = [c for c in required_cols if c not in df.columns]
+
 if missing:
-    st.error(f"This sheet must include the following columns: {', '.join(required_cols)}")
+    st.error(f"This sheet must include the following columns: {', '.join([c.title() for c in required_cols])}")
+    st.write("Detected columns:", list(df.columns))
     st.stop()
+
 
 # --- CLEAN DATA ---
 df["opex%"] = df["Opex%"].fillna(df["Opex%"].mean())
