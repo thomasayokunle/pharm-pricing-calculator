@@ -48,6 +48,7 @@ opex_percent = data["opex%"] / 100
 
 # Base average price
 base_price = revenue / volume if volume > 0 else 0
+base_cost = cogs/volume if volume > 0 else 0
 
 # --- PROPOSED SCENARIO CALCULATIONS ---
 proposed_volume = volume * (1 + volume_growth / 100)
