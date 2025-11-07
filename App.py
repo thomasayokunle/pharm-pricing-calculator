@@ -102,12 +102,18 @@ st.caption("*This section estimates how changing your markup could impact demand
 
 # --- USER INPUTS ---
 st.markdown("#### Adjust Markup Parameters")
-markup_base = st.number_input("Current Markup (%)", value=markup, step=1.0)
-markup_min = st.number_input("Minimum Markup to Test (%)", value=max(0, markup_base - 20), step=1.0)
-markup_max = st.number_input("Maximum Markup to Test (%)", value=markup_base + 20, step=1.0)
-price_elasticity = st.slider("Estimated Price Elasticity of Demand", -3.0, 0.0, -1.2, 0.1,
-    help="How sensitive demand is to price changes. -1.0 means a 1% price drop increases demand by ~1%.")
-markup_range = np.arange(markup_min, markup_max + 1, 2)
+
+markup_base = float(st.number_input("Current Markup (%)", value=float(markup), step=1.0))
+markup_min = float(st.number_input("Minimum Markup to Test (%)", value=float(max(0.0, markup_base - 20.0)), step=1.0))
+markup_max = float(st.number_input("Maximum Markup to Test (%)", value=float(markup_base + 20.0), step=1.0))
+
+price_elasticity = st.slider(
+    "Estimated Price Elasticity of Demand",
+    -3.0, 0.0, -1.2, 0.1,
+    help="How sensitive demand is to price changes. -1.0 means a 1% price drop increases demand by ~1%."
+)
+markup_range = np.arange(markup_min, markup_max + 0.1, 2.0)
+
 
 # --- SIMULATION ---
 markup_sim = pd.DataFrame({"Markup (%)": markup_range})
