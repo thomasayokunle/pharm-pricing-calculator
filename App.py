@@ -1,190 +1,106 @@
 # ==============================================================
-# Pharmacy Pricing Calculator (Google Sheet Integrated)
+# Pharmacy Department Pricing Calculator
+# Mirrors the Lab Calculator logic — Department-level view
 # ==============================================================
 
 import streamlit as st
 import pandas as pd
-import math
 import numpy as np
+import math
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="D-Rock Pharmacy Pricing Calculator", layout="wide")
+st.set_page_config(page_title="Pharmacy Pricing Calculator", layout="wide")
 
 # --- HEADER ---
 st.title("Pharmacy Pricing Calculator")
-st.markdown("""
-This calculator estimates and compares pricing scenarios for Pharmacy Departments.  
-It helps you understand how markup, OPEX, and volume growth affect profitability.
-""")
-
-# --- GOOGLE SHEET SETUP ---
-SHEET_ID = "1VAHAw4KVWuo-tP_rDlx3h_oYwypOodiJuZzhSYiX2v4"
-SHEET_NAME = "PHARMACY"
-
-def load_sheet(sheet_name):
-    """Loads a Google Sheet as CSV and cleans numeric fields."""
-    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
-    df = pd.read_csv(url)
-    df.columns = df.columns.str.strip().str.upper()
-    for col in df.columns:
-        df[col] = pd.to_numeric(df[col], errors="ignore")
-    return df
+st.caption("_Estimate profitability and EBITDA across pharmacy departments_")
 
 # --- LOAD DATA ---
-df = load_sheet(SHEET_NAME)
+sheet_url = "https://docs.google.com/spreadsheets/d/1VAHAw4KVWuo-tP_rDlx3h_oYwypOodiJuZzhSYiX2v4/export?format=csv"
+df = pd.read_csv(sheet_url)
 
-# --- CLEAN OPEX COLUMN ---
-if "OPEX%" in df.columns:
-    df["OPEX%"] = pd.to_numeric(df["OPEX%"], errors="coerce")
-    if df["OPEX%"].notna().any():
-        df["OPEX%"] = df["OPEX%"].fillna(df["OPEX%"].mean())
-    else:
-        df["OPEX%"] = 25.0
+# --- CLEANUP ---
+df.columns = df.columns.str.strip().str.lower()
+
+# Ensure numeric columns
+for col in ["revenue", "cogs", "opex%"]:
+    if col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+# --- SIDEBAR CONFIG ---
+st.sidebar.header("Configuration")
+
+# Department selection
+if "departments" in df.columns:
+    department = st.sidebar.selectbox("Select Department", df["departments"].dropna().unique())
 else:
-    df["OPEX%"] = 25.0
+    st.error("❌ 'departments' column not found in the Google Sheet.")
+    st.stop()
 
-# --- SIDEBAR CONTROLS ---
-st.sidebar.header("Simulation Controls")
+# Get base OPEX from the sheet (if available)
+if "opex%" in df.columns and not df["opex%"].dropna().empty:
+    base_opex_percent = df["opex%"].dropna().iloc[0]
+else:
+    base_opex_percent = 10  # fallback
 
-# Select from the DEPARTMENTS column
-department = st.sidebar.selectbox("Select Department", df["Departments"].unique())
-markup = st.sidebar.slider("Markup Multiplier (×)", 1.0, 5.0, 1.5, 0.1)
-volume_growth = st.sidebar.slider("Projected Volume Growth (%)", -50, 200, 20, 5)
-opex_increase_rate = st.sidebar.slider("OPEX Volume Sensitivity (%)", 0, 100, 10, 5)
+# Allow manual OPEX adjustment
+opex_percent = st.sidebar.slider("Adjust OPEX (%)", 0.0, 50.0, float(base_opex_percent), step=0.5)
+opex_increase_rate = st.sidebar.slider("OPEX Sensitivity (%)", 0.0, 50.0, 10.0, step=1.0)
 
-# --- FILTER SELECTED DEPARTMENT ---
-dept_data = df[df["Departments"] == department].iloc[0]
+# Price and volume inputs
+proposed_price = st.sidebar.number_input("Proposed Price (₦)", min_value=0.0, step=100.0, value=1000.0)
+volume = st.sidebar.number_input("Volume Sold", min_value=1, step=1, value=100)
 
-revenue = float(dept_data["REVENUE"])
-cogs = float(dept_data["COGS"])
-opex_percent = float(dept_data["OPEX%"]) / 100
+# --- DATA SELECTION ---
+df_selected = df[df["departments"] == department].iloc[0]
+revenue = df_selected["revenue"]
+cogs = df_selected["cogs"]
 
-# --- HELPER FUNCTION ---
-def round100(value):
-    try:
-        return int(math.ceil(value / 100.0)) * 100
-    except:
-        return 0
+# --- CALCULATIONS ---
+base_opex = (opex_percent / 100) * revenue
+proposed_opex = base_opex * (1 + (opex_increase_rate / 100))
 
-# --- CURRENT SCENARIO ---
-current_revenue = revenue
-current_cogs = cogs
-current_gross_profit = current_revenue - current_cogs
-current_opex = opex_percent * current_revenue
-current_ebitda = current_gross_profit - current_opex
-current_margin = (current_ebitda / current_revenue) * 100 if current_revenue else 0
-current_net_profit = current_ebitda * 0.85  # post-tax (15% tax assumption)
+# Profitability
+gross_profit = revenue - cogs
+ebitda = gross_profit - base_opex
 
-# --- PROPOSED SCENARIO ---
-proposed_revenue = current_revenue * markup * (1 + volume_growth / 100)
-proposed_cogs = current_cogs * (1 + volume_growth / 100)
+# Proposed values
+proposed_revenue = proposed_price * volume
+proposed_cogs = cogs * (proposed_revenue / revenue) if revenue > 0 else 0
 proposed_gross_profit = proposed_revenue - proposed_cogs
-
-opex_factor = 1 + (opex_increase_rate / 100)
-proposed_opex = opex_percent * proposed_revenue * opex_factor
 proposed_ebitda = proposed_gross_profit - proposed_opex
-proposed_margin = (proposed_ebitda / proposed_revenue) * 100 if proposed_revenue else 0
-proposed_net_profit = proposed_ebitda * 0.85
 
-# --- ROUND VALUES ---
-def r100(x): return round100(x)
-current_revenue, proposed_revenue = r100(current_revenue), r100(proposed_revenue)
-current_cogs, proposed_cogs = r100(current_cogs), r100(proposed_cogs)
-current_opex, proposed_opex = r100(current_opex), r100(proposed_opex)
-current_ebitda, proposed_ebitda = r100(current_ebitda), r100(proposed_ebitda)
-current_net_profit, proposed_net_profit = r100(current_net_profit), r100(proposed_net_profit)
+# Margins
+current_margin = (ebitda / revenue) * 100 if revenue > 0 else 0
+proposed_margin = (proposed_ebitda / proposed_revenue) * 100 if proposed_revenue > 0 else 0
+net_change = proposed_margin - current_margin
 
-# --- COMPARISON TABLE ---
-comparison = pd.DataFrame({
-    "Metric": [
-        "Revenue (₦)", "COGS (₦)", "Gross Profit (₦)",
-        "OPEX (₦)", "EBITDA (₦)", "Profit Margin (%)", "Net Profit (₦)"
-    ],
-    "Current": [
-        current_revenue, current_cogs, current_gross_profit,
-        current_opex, current_ebitda, round(current_margin, 1), current_net_profit
-    ],
-    "Proposed": [
-        proposed_revenue, proposed_cogs, proposed_gross_profit,
-        proposed_opex, proposed_ebitda, round(proposed_margin, 1), proposed_net_profit
-    ],
-    "Change": [
-        proposed_revenue - current_revenue,
-        proposed_cogs - current_cogs,
-        proposed_gross_profit - current_gross_profit,
-        proposed_opex - current_opex,
-        proposed_ebitda - current_ebitda,
-        round(proposed_margin - current_margin, 1),
-        proposed_net_profit - current_net_profit
-    ]
-})
+# --- DISPLAY ---
+st.subheader(f"Department: {department}")
+st.dataframe(df.style.format({"revenue": "₦{:,.0f}", "cogs": "₦{:,.0f}", "opex%": "{:.1f}%"}))
 
-# --- DISPLAY TABLE ---
-st.subheader(f"Pricing Simulation: {department}")
-st.dataframe(
-    comparison.style.format({
-        "Current": "{:,.0f}",
-        "Proposed": "{:,.0f}",
-        "Change": "{:,.0f}"
-    }),
-    use_container_width=True
-)
-
-# --- ANALYTICAL SUMMARY ---
+# --- SUMMARY BLOCK ---
 st.markdown(f"""
 **Summary Insight**  
-At a markup of **×{markup:.1f}**, and **{volume_growth}%** projected growth,  
-revenue and COGS scale accordingly for the **{department}** department.  
-EBITDA margin shifts from **{current_margin:.1f}%** to **{proposed_margin:.1f}%**,  
-while **Net Profit** rises from **₦{current_net_profit:,.0f}** to **₦{proposed_net_profit:,.0f}**.  
-OPEX increases by **{opex_increase_rate}%** sensitivity as volume grows.
+At a proposed price of **₦{proposed_price:,.0f}**, revenue and COGS scale with **{volume} units**.  
+EBITDA margin improved from **{current_margin:.1f}%** to **{proposed_margin:.1f}%** 
+(**{net_change:+.1f}% change**).  
+OPEX increased by **{opex_increase_rate}%** for higher volumes, from 
+₦{base_opex:,.0f} to ₦{proposed_opex:,.0f}.  
+
+**Net Profit Margin:** **{proposed_margin:.1f}%**
 """)
-st.caption("💡 *Net Profit = EBITDA less 15% tax; Opex Sensitivity models operational scaling.*")
 
-# --- VOLUME SIMULATION CHART ---
-st.subheader("Volume Projection (EBITDA Impact)")
+st.caption("💡 *Opex Sensitivity controls how much operating cost grows as volume increases.*")
 
-projection = pd.DataFrame({
-    "Volume Growth %": range(-50, 201, 10),
-    "EBITDA (₦)": [
-        (revenue * markup * (1 + v/100) - cogs * (1 + v/100) -
-         (opex_percent * revenue * markup * (1 + v/100) * (1 + opex_increase_rate / 100)))
-        for v in range(-50, 201, 10)
-    ]
-})
-st.line_chart(projection.set_index("Volume Growth %"))
-
-# --- FOOTER ---
-st.markdown("---")
-st.markdown(
-    "<p style='text-align:center; font-size:14px;'>Created by <b>Ayokunle Thomas</b> – Data Scientist</p>",
-    unsafe_allow_html=True
-)
-st.markdown(
-    """
-    <style>
-    .footer-links {
-        text-align: center;
-        font-size: 12px;
-        font-style: italic;
-        color: #888888;
-    }
-    .footer-links a {
-        color: #888888;
-        text-decoration: none;
-        margin: 0 6px;
-        transition: color 0.3s ease;
-    }
-    .footer-links a:hover {
-        color: #1f77b4;
-    }
-    </style>
-
-    <div class="footer-links">
-        <a href="https://www.linkedin.com/in/ayokunle-thomas" target="_blank">LinkedIn</a> |
-        <a href="https://github.com/ThomasAyokunle" target="_blank">GitHub</a>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-st.caption("ExCare Services Pharmacy Pricing Calculator © 2025")
+# --- FOOTER LINKS ---
+st.markdown("""
+<hr style="border: 0.5px solid #ddd;">
+<div style='text-align: center; font-size: 13px; font-style: italic; color: #666;'>
+<a href='https://www.linkedin.com/in/ayokunle-thomas' target='_blank' style='color: #888; text-decoration: none;'>LinkedIn</a> |
+<a href='https://github.com/ThomasAyokunle' target='_blank' style='color: #888; text-decoration: none;'>GitHub</a>
+</div>
+<style>
+a:hover { color: #4b9cea !important; }
+</style>
+""", unsafe_allow_html=True)
