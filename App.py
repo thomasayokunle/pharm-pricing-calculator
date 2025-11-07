@@ -35,10 +35,10 @@ if missing:
 
 
 # --- CLEAN DATA ---
-df["opex%"] = df["Opex%"].fillna(df["Opex%"].mean())
-df["revenue"] = pd.to_numeric(df["Revenue"], errors="coerce")
-df["cogs"] = pd.to_numeric(df["COGS"], errors="coerce")
-df["volume sold"] = pd.to_numeric(df["Volume Sold"], errors="coerce")
+df["opex%"] = df["Opex%"].fillna(df["opex%"].mean())
+df["revenue"] = pd.to_numeric(df["revenue"], errors="coerce")
+df["cogs"] = pd.to_numeric(df["cogs"], errors="coerce")
+df["volume sold"] = pd.to_numeric(df["volume sold"], errors="coerce")
 
 # --- SIDEBAR FILTERS ---
 st.sidebar.header("⚙️ Calculator Settings")
