@@ -95,20 +95,51 @@ EBITDA margin shifts from **{base_margin:.1f}%** to **{proposed_margin:.1f}%**, 
 
 st.caption("*OPEX sensitivity shows how operating expenses change relative to revenue growth.*")
 
-# --- VOLUME-PRICE IMPACT SIMULATION ---
-st.subheader("📈 Volume–Price Sensitivity (EBITDA Projection)")
+# --- MARKUP SENSITIVITY ANALYSIS ---
+st.subheader("Markup Sensitivity Analysis")
 
-simulation = pd.DataFrame({
-    "Volume Growth (%)": range(-50, 201, 10)
-})
-simulation["Volume"] = volume * (1 + simulation["Volume Growth (%)"] / 100)
-simulation["Proposed Revenue"] = proposed_price * simulation["Volume"]
-simulation["Proposed COGS"] = (cogs / volume) * simulation["Volume"]
-simulation["Proposed OPEX"] = (opex_percent * simulation["Proposed Revenue"]) * (1 + opex_sensitivity / 100)
-simulation["Proposed EBITDA"] = simulation["Proposed Revenue"] - simulation["Proposed COGS"] - simulation["Proposed OPEX"]
-simulation["EBITDA Margin (%)"] = (simulation["Proposed EBITDA"] / simulation["Proposed Revenue"]) * 100
+st.caption("*This section estimates how changing your markup could impact demand, revenue, and profitability.*")
 
-st.line_chart(simulation.set_index("Volume Growth (%)")[["EBITDA Margin (%)"]])
+# --- USER INPUTS ---
+st.markdown("#### Adjust Markup Parameters")
+markup_base = st.number_input("Current Markup (%)", value=markup, step=1.0)
+markup_min = st.number_input("Minimum Markup to Test (%)", value=max(0, markup_base - 20), step=1.0)
+markup_max = st.number_input("Maximum Markup to Test (%)", value=markup_base + 20, step=1.0)
+price_elasticity = st.slider("Estimated Price Elasticity of Demand", -3.0, 0.0, -1.2, 0.1,
+    help="How sensitive demand is to price changes. -1.0 means a 1% price drop increases demand by ~1%.")
+markup_range = np.arange(markup_min, markup_max + 1, 2)
+
+# --- SIMULATION ---
+markup_sim = pd.DataFrame({"Markup (%)": markup_range})
+markup_sim["Price"] = base_cost * (1 + markup_sim["Markup (%)"] / 100)
+
+# Estimate demand using elasticity (relative to base)
+markup_sim["Estimated Volume"] = volume * (1 + ((markup_base - markup_sim["Markup (%)"]) / markup_base) * abs(price_elasticity))
+markup_sim["Revenue"] = markup_sim["Price"] * markup_sim["Estimated Volume"]
+markup_sim["COGS"] = base_cost * markup_sim["Estimated Volume"]
+markup_sim["OPEX"] = (opex_percent * markup_sim["Revenue"]) * (1 + opex_sensitivity / 100)
+markup_sim["EBITDA"] = markup_sim["Revenue"] - markup_sim["COGS"] - markup_sim["OPEX"]
+markup_sim["EBITDA Margin (%)"] = (markup_sim["EBITDA"] / markup_sim["Revenue"]) * 100
+
+# --- VISUALS ---
+st.line_chart(markup_sim.set_index("Markup (%)")[["EBITDA Margin (%)"]])
+st.dataframe(markup_sim[["Markup (%)", "Price", "Estimated Volume", "Revenue", "EBITDA", "EBITDA Margin (%)"]].round(2))
+
+# --- ALERT LOGIC ---
+best_markup = markup_sim.loc[markup_sim["EBITDA"].idxmax(), "Markup (%)"]
+ebitda_improvement = (
+    (markup_sim["EBITDA"].max() - markup_sim.loc[markup_sim["Markup (%)"] == markup_base, "EBITDA"].values[0])
+    / markup_sim.loc[markup_sim["Markup (%)"] == markup_base, "EBITDA"].values[0]
+    * 100
+)
+
+if best_markup < markup_base:
+    st.warning(f"📉 *Reducing markup to around {best_markup:.1f}% could potentially improve EBITDA by about {ebitda_improvement:.1f}%.*")
+elif best_markup > markup_base:
+    st.success(f"📈 *Increasing markup to around {best_markup:.1f}% could improve EBITDA by about {ebitda_improvement:.1f}%.*")
+else:
+    st.info("ℹ️ *Your current markup seems optimal under the given assumptions.*")
+
 
 # --- FOOTER ---
 st.markdown("---")
