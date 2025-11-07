@@ -32,7 +32,8 @@ def load_sheet(sheet_name):
 # --- SIDEBAR CONTROLS ---
 st.sidebar.header("Simulation Controls")
 
-department = st.sidebar.selectbox("Select Department", ["PHARMACY"])
+# Select from the DEPARTMENTS column
+department = st.sidebar.selectbox("Select Department", df["DEPARTMENTS"].unique())
 markup = st.sidebar.slider("Markup Multiplier (×)", 1.0, 5.0, 1.5, 0.1)
 volume_growth = st.sidebar.slider("Volume Growth (%)", -50, 200, 0, 10)
 opex_increase_rate = st.sidebar.slider("OPEX Sensitivity (%)", 0, 100, 10, 5)
