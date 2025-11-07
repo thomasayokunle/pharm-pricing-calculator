@@ -1,11 +1,9 @@
 # ==============================================================
-# Pharmacy Department Pricing Calculator
-# Mirrors Lab Calculator logic – Department-level summary
+# Pharmacy Pricing Calculator (Google Sheet Integrated)
 # ==============================================================
 
 import streamlit as st
 import pandas as pd
-import numpy as np
 import math
 
 # --- PAGE CONFIG ---
@@ -14,128 +12,82 @@ st.set_page_config(page_title="Pharmacy Pricing Calculator", layout="wide")
 # --- HEADER ---
 st.title("Pharmacy Pricing Calculator")
 st.markdown("""
-This calculator estimates and compares profitability for each pharmacy department.  
-It helps evaluate how pricing, OPEX, and volume affect EBITDA and margins.
+This calculator estimates and compares pricing scenarios for pharmacy departments.  
+It helps you visualize how price, cost, and OPEX adjustments affect profitability.
 """)
 
-# --- LOAD DATA FROM GOOGLE SHEET ---
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1VAHAw4KVWuo-tP_rDlx3h_oYwypOodiJuZzhSYiX2v4/export?format=csv"
-df = pd.read_csv(SHEET_URL)
+# --- LOAD DATA ---
+sheet_url = "https://docs.google.com/spreadsheets/d/1VAHAw4KVWuo-tP_rDlx3h_oYwypOodiJuZzhSYiX2v4/export?format=csv"
+df = pd.read_csv(sheet_url)
 
-# --- CLEANUP ---
+# --- CLEAN COLUMN NAMES ---
 df.columns = df.columns.str.strip().str.lower()
 
-# Ensure numeric columns
-for col in ["revenue", "cogs", "volume sold", "opex%"]:
-    if col in df.columns:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-
-# --- SIDEBAR CONTROLS ---
-st.sidebar.header("Simulation Controls")
-
-if "departments" not in df.columns:
-    st.error("The sheet must include a 'Departments' column.")
+required_cols = ["departments", "revenue", "cogs", "volume sold", "opex%"]
+missing = [c for c in required_cols if c not in df.columns]
+if missing:
+    st.error(f"This sheet must include the following columns: {', '.join(required_cols)}")
     st.stop()
+
+# --- CLEAN DATA ---
+df["opex%"] = df["opex%"].fillna(df["opex%"].mean())
+df["revenue"] = pd.to_numeric(df["revenue"], errors="coerce")
+df["cogs"] = pd.to_numeric(df["cogs"], errors="coerce")
+df["volume sold"] = pd.to_numeric(df["volume sold"], errors="coerce")
+
+# --- SIDEBAR FILTERS ---
+st.sidebar.header("⚙️ Calculator Settings")
 
 department = st.sidebar.selectbox("Select Department", df["departments"].dropna().unique())
 
-# Get OPEX% from the sheet (first non-empty value)
-if "opex%" in df.columns and not df["opex%"].dropna().empty:
-    base_opex_percent = df["opex%"].dropna().iloc[0]
-else:
-    base_opex_percent = 10  # fallback default
+price_change = st.sidebar.slider("Proposed Price Change (%)", -20, 50, 10)
+opex_adjustment = st.sidebar.slider("OPEX Adjustment (%)", -10, 20, 0)
+volume_growth = st.sidebar.slider("Expected Volume Growth (%)", -20, 50, 10)
 
-# Editable OPEX adjustment
-opex_percent = st.sidebar.slider("OPEX (%)", 0.0, 50.0, float(base_opex_percent), step=0.5)
-opex_sensitivity = st.sidebar.slider("OPEX Sensitivity (%)", 0.0, 50.0, 10.0, step=1.0)
+# --- DATA SELECTION ---
+row = df[df["departments"] == department].iloc[0]
+revenue = row["revenue"]
+cogs = row["cogs"]
+volume = row["volume sold"]
+base_opex = row["opex%"]
 
-# Proposed price input
-proposed_price = st.sidebar.number_input("Proposed Price (₦)", min_value=0.0, step=100.0, value=1000.0)
+# --- CALCULATIONS ---
+current_margin = ((revenue - cogs - (revenue * base_opex / 100)) / revenue) * 100
 
-# --- SELECTED DEPARTMENT DATA ---
-df_dept = df[df["departments"] == department].iloc[0]
+proposed_revenue = revenue * (1 + price_change / 100) * (1 + volume_growth / 100)
+proposed_cogs = cogs * (1 + volume_growth / 100)
+proposed_opex = base_opex * (1 + opex_adjustment / 100)
 
-revenue = df_dept["revenue"]
-cogs = df_dept["cogs"]
-volume = df_dept["volume sold"]
+proposed_margin = ((proposed_revenue - proposed_cogs - (proposed_revenue * proposed_opex / 100)) / proposed_revenue) * 100
 
-# --- CURRENT SCENARIO ---
-opex = (opex_percent / 100) * revenue
-gross_profit = revenue - cogs
-ebitda = gross_profit - opex
-current_margin = (ebitda / revenue) * 100 if revenue != 0 else 0
+# --- INSIGHTS ---
+st.markdown("### 📊 Analytical Summary")
+st.markdown(f"""
+| Metric | Current | Proposed |
+|:--|:--:|:--:|
+| **Revenue (₦)** | ₦{revenue:,.0f} | ₦{proposed_revenue:,.0f} |
+| **COGS (₦)** | ₦{cogs:,.0f} | ₦{proposed_cogs:,.0f} |
+| **OPEX%** | {base_opex:.1f}% | {proposed_opex:.1f}% |
+| **Net Profit Margin** | {current_margin:.1f}% | {proposed_margin:.1f}% |
+""")
 
-# --- PROPOSED SCENARIO ---
-proposed_revenue = proposed_price * volume
-proposed_cogs = cogs * (proposed_revenue / revenue) if revenue > 0 else 0
-proposed_opex = (opex_percent / 100) * proposed_revenue * (1 + (opex_sensitivity / 100))
-proposed_gross_profit = proposed_revenue - proposed_cogs
-proposed_ebitda = proposed_gross_profit - proposed_opex
-proposed_margin = (proposed_ebitda / proposed_revenue) * 100 if proposed_revenue != 0 else 0
-margin_change = proposed_margin - current_margin
-
-# --- COMPARISON TABLE ---
-comparison = pd.DataFrame({
-    "Metric": ["Revenue (₦)", "COGS (₦)", "Gross Profit (₦)", "OPEX (₦)", "EBITDA (₦)", "EBITDA Margin (%)"],
-    "Current": [revenue, cogs, gross_profit, opex, ebitda, current_margin],
-    "Proposed": [proposed_revenue, proposed_cogs, proposed_gross_profit, proposed_opex, proposed_ebitda, proposed_margin],
-    "Change": [
-        proposed_revenue - revenue,
-        proposed_cogs - cogs,
-        proposed_gross_profit - gross_profit,
-        proposed_opex - opex,
-        proposed_ebitda - ebitda,
-        margin_change
-    ]
-})
-
-# --- DISPLAY ---
-st.subheader(f"Department Overview: {department}")
-st.dataframe(
-    comparison.style.format({
-        "Current": "₦{:,.0f}",
-        "Proposed": "₦{:,.0f}",
-        "Change": "₦{:,.0f}"
-    }),
-    use_container_width=True
+# --- SUMMARY NOTE ---
+price_note = (
+    "Profitability improves with price and volume growth."
+    if proposed_margin > current_margin
+    else "Profitability declines under the current scenario."
 )
 
-# --- ANALYTICAL SUMMARY ---
 st.markdown(f"""
 **Summary Insight**  
-At a proposed price of **₦{proposed_price:,.0f}**, revenue and COGS scale with **{int(volume)} units sold**.  
-EBITDA margin moves from **{current_margin:.1f}%** to **{proposed_margin:.1f}%** (**{margin_change:+.1f}% change**).  
-OPEX grows from ₦{opex:,.0f} to ₦{proposed_opex:,.0f} under a **{opex_sensitivity}%** sensitivity setting.  
+At a proposed price change of **{price_change}%** and volume growth of **{volume_growth}%**,  
+the EBITDA margin moves from **{current_margin:.1f}%** to **{proposed_margin:.1f}%**.  
+OPEX is adjusted by **{opex_adjustment}%**, moving from **{base_opex:.1f}%** to **{proposed_opex:.1f}%**.  
+{price_note}
 """)
-st.info(f"**Net Profit Margin:** {proposed_margin:.1f}%")
 
-st.caption("*OPEX Sensitivity adjusts how operating cost grows with increased revenue or volume.*")
-
-# --- VISUAL INSIGHT ---
-projection = pd.DataFrame({
-    "Volume": range(1, int(volume) + 1),
-    "Total Revenue": [proposed_price * v for v in range(1, int(volume) + 1)],
-    "Total EBITDA": [
-        (proposed_price * v - (cogs / volume) * v -
-         ((opex_percent / 100) * proposed_price * v * (1 + (opex_sensitivity / 100))))
-        for v in range(1, int(volume) + 1)
-    ]
-})
-st.subheader("EBITDA Impact by Volume")
-st.line_chart(projection.set_index("Volume"))
+st.caption("*OPEX Adjustment reflects operational cost sensitivity as volume and pricing change.*")
 
 # --- FOOTER ---
-st.markdown("---")
-st.markdown(
-    """
-    <div style='text-align:center; font-size:13px; font-style:italic; color:#888;'>
-        Created by <b>Ayokunle Thomas</b> — Data Scientist<br>
-        <a href='https://www.linkedin.com/in/ayokunle-thomas' target='_blank' style='color:#888;'>LinkedIn</a> |
-        <a href='https://github.com/ThomasAyokunle' target='_blank' style='color:#888;'>GitHub</a>
-    </div>
-    <style>
-    a:hover { color: #4b9cea !important; }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+st.write("---")
+st.caption("Pharmacy Pricing Calculator © 2025 ExCare Services Limited")
