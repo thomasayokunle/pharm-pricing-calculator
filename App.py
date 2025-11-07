@@ -33,7 +33,7 @@ st.sidebar.header("⚙️ Simulation Controls")
 
 department = st.sidebar.selectbox("Select Department", df["departments"].unique())
 markup = st.sidebar.slider("Markup Multiplier (×)", 0.5, 5.0, 1.2, 0.05)
-volume_growth = st.sidebar.slider("Projected Volume Growth (%)", -50, 20000, 200, 50)
+volume_growth = st.sidebar.slider("Projected Volume Growth (%)", -50, 2000, 20, 50)
 opex_sensitivity = st.sidebar.slider("OPEX Sensitivity to Volume (%)", 0, 100, 10, 5)
 
 # --- FILTER SELECTED DEPARTMENT ---
