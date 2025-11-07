@@ -53,7 +53,7 @@ volume_growth = st.sidebar.slider("Projected Volume Growth (%)", -50, 200, 20, 5
 opex_increase_rate = st.sidebar.slider("OPEX Volume Sensitivity (%)", 0, 100, 10, 5)
 
 # --- FILTER SELECTED DEPARTMENT ---
-dept_data = df[df["DEPARTMENTS"] == department].iloc[0]
+dept_data = df[df["Departments"] == department].iloc[0]
 
 revenue = float(dept_data["REVENUE"])
 cogs = float(dept_data["COGS"])
