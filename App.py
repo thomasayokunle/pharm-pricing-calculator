@@ -21,31 +21,31 @@ sheet_url = "https://docs.google.com/spreadsheets/d/1VAHAw4KVWuo-tP_rDlx3h_oYwyp
 df = pd.read_csv(sheet_url)
 
 # --- CLEAN COLUMN NAMES ---
-df.columns = df.columns.str.strip().str.lower()
+df.columns = df.columns.str.strip()
 
-required_cols = ["departments", "revenue", "cogs", "volume sold", "opex%"]
+required_cols = ["Departments", "Revenue", "COGS", "Volume Sold", "Opex%"]
 missing = [c for c in required_cols if c not in df.columns]
 if missing:
     st.error(f"This sheet must include the following columns: {', '.join(required_cols)}")
     st.stop()
 
 # --- CLEAN DATA ---
-df["opex%"] = df["opex%"].fillna(df["opex%"].mean())
-df["revenue"] = pd.to_numeric(df["revenue"], errors="coerce")
-df["cogs"] = pd.to_numeric(df["cogs"], errors="coerce")
-df["volume sold"] = pd.to_numeric(df["volume sold"], errors="coerce")
+df["opex%"] = df["Opex%"].fillna(df["Opex%"].mean())
+df["revenue"] = pd.to_numeric(df["Revenue"], errors="coerce")
+df["cogs"] = pd.to_numeric(df["COGS"], errors="coerce")
+df["volume sold"] = pd.to_numeric(df["Volume Sold"], errors="coerce")
 
 # --- SIDEBAR FILTERS ---
 st.sidebar.header("⚙️ Calculator Settings")
 
-department = st.sidebar.selectbox("Select Department", df["departments"].dropna().unique())
+department = st.sidebar.selectbox("Select Department", df["Departments"].dropna().unique())
 
 price_change = st.sidebar.slider("Proposed Price Change (%)", -20, 50, 10)
 opex_adjustment = st.sidebar.slider("OPEX Adjustment (%)", -10, 20, 0)
 volume_growth = st.sidebar.slider("Expected Volume Growth (%)", -20, 50, 10)
 
 # --- DATA SELECTION ---
-row = df[df["departments"] == department].iloc[0]
+row = df[df["Departments"] == department].iloc[0]
 revenue = row["revenue"]
 cogs = row["cogs"]
 volume = row["volume sold"]
@@ -61,7 +61,7 @@ proposed_opex = base_opex * (1 + opex_adjustment / 100)
 proposed_margin = ((proposed_revenue - proposed_cogs - (proposed_revenue * proposed_opex / 100)) / proposed_revenue) * 100
 
 # --- INSIGHTS ---
-st.markdown("### 📊 Analytical Summary")
+st.markdown("###Analytical Summary")
 st.markdown(f"""
 | Metric | Current | Proposed |
 |:--|:--:|:--:|
