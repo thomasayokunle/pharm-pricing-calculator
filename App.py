@@ -43,14 +43,14 @@ df["volume sold"] = pd.to_numeric(df["volume sold"], errors="coerce")
 # --- SIDEBAR FILTERS ---
 st.sidebar.header("⚙️ Calculator Settings")
 
-department = st.sidebar.selectbox("Select Department", df["Departments"].dropna().unique())
+department = st.sidebar.selectbox("Select Department", df["departments"].dropna().unique())
 
 price_change = st.sidebar.slider("Proposed Price Change (%)", -20, 50, 10)
 opex_adjustment = st.sidebar.slider("OPEX Adjustment (%)", -10, 20, 0)
 volume_growth = st.sidebar.slider("Expected Volume Growth (%)", -20, 50, 10)
 
 # --- DATA SELECTION ---
-row = df[df["Departments"] == department].iloc[0]
+row = df[df["departments"] == department].iloc[0]
 revenue = row["revenue"]
 cogs = row["cogs"]
 volume = row["volume sold"]
