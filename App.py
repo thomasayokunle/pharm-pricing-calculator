@@ -11,7 +11,7 @@ import numpy as np
 st.set_page_config(page_title="Pharmacy Pricing P&L Sensitivity", layout="wide")
 
 # --- HEADER ---
-st.title("💊 Pharmacy Department Pricing & P&L Sensitivity Dashboard")
+st.title("Pharmacy Department Pricing & P&L Dashboard")
 st.caption("Analyze how changes in markup, sales volume, and OPEX affect gross and net profitability by department.")
 
 # --- DATA SOURCE ---
@@ -36,7 +36,7 @@ if not all(col in df.columns for col in required_cols):
     st.stop()
 
 # --- SIDEBAR CONTROLS ---
-st.sidebar.header("⚙️ Scenario Controls")
+st.sidebar.header("Scenario Controls")
 department = st.sidebar.selectbox("Select Department", df["departments"].unique())
 volume_growth = st.sidebar.slider("Projected Volume Growth (%)", -50, 300, 0, 10)
 markup = st.sidebar.slider("Proposed Markup Multiplier (×)", 0.8, 3.0, 1.2, 0.05)
@@ -85,14 +85,14 @@ new_net_margin = (new_net_profit / new_revenue) * 100 if new_revenue > 0 else 0
 
 # --- ALERT BANNER ---
 if new_net_margin < margin_threshold:
-    st.error(f"⚠️ Net Margin drops to {new_net_margin:.1f}%, below target ({margin_threshold}%)")
+    st.error(f"Net Margin drops to {new_net_margin:.1f}%, below target ({margin_threshold}%)")
 elif new_net_margin >= margin_threshold + 5:
-    st.success(f"✅ Net Margin improves to {new_net_margin:.1f}%, comfortably above target.")
+    st.success(f"Net Margin improves to {new_net_margin:.1f}%, comfortably above target.")
 else:
-    st.info(f"ℹ️ Net Margin is {new_net_margin:.1f}%, near the threshold ({margin_threshold}%).")
+    st.info(f"Net Margin is {new_net_margin:.1f}%, near the threshold ({margin_threshold}%).")
 
 # --- COMPARISON TABLE ---
-st.subheader(f"📊 Department P&L Comparison: {department}")
+st.subheader(f"Department P&L Comparison: {department}")
 
 summary = pd.DataFrame({
     "Metric": [
@@ -146,7 +146,7 @@ net_change = new_net_margin - current_net_margin
 direction = "increase" if net_change > 0 else "drop"
 
 st.markdown(f"""
-### 🧠 Insight Summary
+### Insight Summary
 With a **markup of ×{markup:.2f}** and **volume change of {volume_growth}%**,  
 **{department}**'s **Net Margin** moves from **{current_net_margin:.1f}% → {new_net_margin:.1f}%**,  
 while **Gross Margin** changes from **{current_gross_margin:.1f}% → {new_gross_margin:.1f}%**.  
