@@ -1,5 +1,5 @@
 # --- VOLUME–PRICE IMPACT & MARGIN SIMULATION ---
-st.subheader("Volume–Price Sensitivity and Margin Analysis")
+st.markdown("Volume–Price Sensitivity and Margin Analysis")
 
 st.caption("💡 This simulation helps assess how volume changes affect profitability at different markup levels — while keeping margins above a set minimum threshold.")
 
