@@ -49,6 +49,8 @@ revenue = data["revenue"]
 cogs = data["cogs"]
 volume = data["volume sold"]
 opex_percent = float(data["opex%"]) / 100
+st.write(f"OPEX% for {department}: {opex_percent:.2%}")
+
 
 # --- BASE VALUES ---
 price_per_unit = revenue / volume if volume > 0 else 0
@@ -133,8 +135,8 @@ summary["Change (%)"] = summary["Change (%)"].apply(lambda x: f"{x:.1f}%" if np.
 
 st.dataframe(
     summary.style.format({
-        "Current": "{:,.2f}",
-        "Proposed": "{:,.2f}",
+        "Current": lambda x: f"₦{x:,.0f}" if summary.loc[summary['Metric'] == 'Revenue (₦)'].empty is False else f"{x:.1f}%",
+        "Proposed": lambda x: f"₦{x:,.0f}" if summary.loc[summary['Metric'] == 'Revenue (₦)'].empty is False else f"{x:.1f}%",
         "Change (%)": "{}"
     })
 )
