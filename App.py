@@ -1,153 +1,72 @@
-# ==============================================================
-# Pharmacy Pricing & Volume Sensitivity Calculator
-# ==============================================================
+# --- VOLUME–PRICE IMPACT & MARGIN SIMULATION ---
+st.subheader("Volume–Price Sensitivity and Margin Analysis")
 
-import streamlit as st
-import pandas as pd
-import numpy as np
+st.caption("This simulation helps assess how volume changes affect profitability at different markup levels — while keeping margins above a set minimum threshold.")
 
-# --- PAGE CONFIG ---
-st.set_page_config(page_title="Pharmacy Pricing Calculator", layout="wide")
+# Input controls
+st.sidebar.markdown("### Simulation Controls")
+base_markup = st.sidebar.slider("Current Markup (×)", 1.0, 3.0, 1.5, 0.05)
+min_markup = st.sidebar.slider("Min Markup to Test (×)", 1.0, base_markup, 1.3, 0.05)
+max_markup = st.sidebar.slider("Max Markup to Test (×)", base_markup, 3.0, 2.0, 0.05)
+volume_growth_range = st.sidebar.slider("Volume Growth Range (%)", -50, 300, (0, 200), 10)
+opex_sensitivity = st.sidebar.slider("OPEX Sensitivity (%)", 0, 100, 10, 5)
+min_margin = st.sidebar.number_input("Minimum Acceptable Margin (%)", 0.0, 100.0, 15.0, 0.5)
 
-st.title("Pharmacy Pricing & Volume Sensitivity Calculator")
-st.caption("Analyze how price, volume, and OPEX adjustments impact departmental profitability.")
+# Create simulation table
+volume_growth_values = range(volume_growth_range[0], volume_growth_range[1] + 10, 10)
+markup_values = np.arange(min_markup, max_markup + 0.01, 0.05)
 
-# --- LOAD DATA ---
-url = "https://docs.google.com/spreadsheets/d/1VAHAw4KVWuo-tP_rDlx3h_oYwypOodiJuZzhSYiX2v4/export?format=csv&gid=876068924"
+simulation = []
+for mg in markup_values:
+    for vg in volume_growth_values:
+        new_volume = volume * (1 + vg / 100)
+        new_price = (cogs / volume) * mg
+        new_revenue = new_price * new_volume
+        new_cogs = (cogs / volume) * new_volume
+        new_opex = (opex_percent * new_revenue) * (1 + opex_sensitivity / 100)
+        ebitda = new_revenue - new_cogs - new_opex
+        margin = (ebitda / new_revenue) * 100
+        meets_threshold = margin >= min_margin
+        simulation.append([mg, vg, new_revenue, ebitda, margin, meets_threshold])
 
-try:
-    df = pd.read_csv(url)
-    df.columns = df.columns.str.strip().str.lower()
-except Exception as e:
-    st.error(f"Error loading Google Sheet: {e}")
-    st.stop()
+simulation_df = pd.DataFrame(simulation, columns=["Markup", "Volume Growth (%)", "Revenue", "EBITDA", "EBITDA Margin (%)", "Meets Threshold"])
 
-required_cols = ["departments", "revenue", "cogs", "volume sold", "opex%"]
-missing = [c for c in required_cols if c not in df.columns]
+# --- MAIN ALERT BOX ---
+safe_scenarios = simulation_df[simulation_df["Meets Threshold"]]
 
-if missing:
-    st.error(f"This sheet must include the following columns: {', '.join(required_cols)}")
-    st.stop()
-
-# --- SIDEBAR CONTROLS ---
-st.sidebar.header("⚙️ Simulation Controls")
-
-department = st.sidebar.selectbox("Select Department", df["departments"].unique())
-markup = st.sidebar.slider("Markup Multiplier (×)", 0.5, 5.0, 1.2, 0.25)
-volume_growth = st.sidebar.slider("Projected Volume Growth (%)", -50, 200, 20, 5)
-opex_sensitivity = st.sidebar.slider("OPEX Sensitivity to Volume (%)", 0, 100, 10, 5)
-
-# --- FILTER SELECTED DEPARTMENT ---
-data = df[df["departments"] == department].iloc[0]
-
-# --- BASE METRICS ---
-revenue = data["revenue"]
-cogs = data["cogs"]
-volume = data["volume sold"]
-opex_percent = data["opex%"] / 100
-
-# Base average price
-base_price = revenue / volume if volume > 0 else 0
-base_cost = cogs/volume if volume > 0 else 0
-
-# --- PROPOSED SCENARIO CALCULATIONS ---
-proposed_volume = volume * (1 + volume_growth / 100)
-proposed_price = base_price * markup
-proposed_revenue = proposed_price * proposed_volume
-proposed_cogs = (cogs / volume) * proposed_volume
-proposed_opex = (opex_percent * proposed_revenue) * (1 + opex_sensitivity / 100)
-
-# --- PROFITABILITY CALCULATIONS ---
-base_opex = opex_percent * revenue
-base_profit = revenue - cogs - base_opex
-proposed_profit = proposed_revenue - proposed_cogs - proposed_opex
-
-base_margin = (base_profit / revenue) * 100 if revenue > 0 else 0
-proposed_margin = (proposed_profit / proposed_revenue) * 100 if proposed_revenue > 0 else 0
-
-# --- ALERT BANNER ---
-if proposed_margin < base_margin:
-    st.warning("Proposed changes may reduce profit margin. Consider adjusting price or volume.")
-elif proposed_margin > base_margin + 5:
-    st.success("Proposed changes significantly improve profitability. Monitor demand response.")
+if not safe_scenarios.empty:
+    lowest_safe_markup = safe_scenarios.groupby("Markup")["EBITDA Margin (%)"].mean().idxmin()
+    st.success(
+        f"Profitability is safe. At least one markup–volume combination maintains "
+        f"a margin above your {min_margin:.1f}% threshold.\n\n"
+        f"🔹 The lowest safe markup is approximately **{lowest_safe_markup:.2f}×**."
+    )
 else:
-    st.info("Profitability change within normal range. Fine-tune parameters for optimization.")
+    st.error(
+        f"All tested markup–volume combinations fall below your {min_margin:.1f}% minimum margin. "
+        f"Consider increasing markup or reducing OPEX."
+    )
 
-# --- SUMMARY BLOCK ---
-st.markdown(f"""
-### 📊 Department Summary: **{department}**
-| Metric | Current | Proposed | Change |
-|:--|--:|--:|--:|
-| **Average Price (₦)** | ₦{base_price:,.2f} | ₦{proposed_price:,.2f} | {((proposed_price/base_price - 1)*100):.1f}% |
-| **Volume Sold** | {volume:,.0f} | {proposed_volume:,.0f} | {volume_growth:.1f}% |
-| **Revenue (₦)** | ₦{revenue:,.0f} | ₦{proposed_revenue:,.0f} | {((proposed_revenue/revenue - 1)*100):.1f}% |
-| **COGS (₦)** | ₦{cogs:,.0f} | ₦{proposed_cogs:,.0f} | {((proposed_cogs/cogs - 1)*100):.1f}% |
-| **OPEX (₦)** | ₦{base_opex:,.0f} | ₦{proposed_opex:,.0f} | {((proposed_opex/base_opex - 1)*100):.1f}% |
-| **Profit (₦)** | ₦{base_profit:,.0f} | ₦{proposed_profit:,.0f} | {((proposed_profit/base_profit - 1)*100 if base_profit else 0):.1f}% |
-| **Net Profit Margin (%)** | {base_margin:.1f}% | {proposed_margin:.1f}% | {proposed_margin - base_margin:+.1f} pts |
-""")
+# --- HIGHLIGHTED TABLE ---
+styled_df = simulation_df.pivot_table(index="Volume Growth (%)", columns="Markup", values="EBITDA Margin (%)")
 
-# --- ANALYTICAL INSIGHT ---
-st.markdown(f"""
-**Insight Summary**  
-At a proposed markup of **{markup}×** and a projected volume change of **{volume_growth}%**,  
-department **{department}** expects revenue of **₦{proposed_revenue:,.0f}**, with COGS and OPEX scaling accordingly.  
-EBITDA margin shifts from **{base_margin:.1f}%** to **{proposed_margin:.1f}%**, driven by volume sensitivity and OPEX dynamics.  
-""")
+def highlight_margin(val):
+    color = "#d4edda" if val >= min_margin else "#f8d7da"  # green for safe, red for below
+    return f"background-color: {color}"
 
-st.caption("*OPEX sensitivity shows how operating expenses change relative to revenue growth.*")
+st.dataframe(styled_df.style.applymap(highlight_margin), use_container_width=True)
 
-# --- MARKUP SENSITIVITY ANALYSIS ---
-st.subheader("Markup Sensitivity Analysis")
+# --- CHART ---
+st.line_chart(simulation_df.pivot(index="Volume Growth (%)", columns="Markup", values="EBITDA Margin (%)"))
 
-st.caption("*This section estimates how changing your markup could impact demand, revenue, and profitability.*")
+# --- INSIGHT SECTION ---
+best_combo = simulation_df.loc[simulation_df["EBITDA"].idxmax()]
 
-# --- USER INPUTS ---
-st.markdown("#### Adjust Markup Parameters")
-
-markup_base = float(st.number_input("Current Markup (%)", value=float(markup), step=1.0))
-markup_min = float(st.number_input("Minimum Markup to Test (%)", value=float(max(0.0, markup_base - 20.0)), step=1.0))
-markup_max = float(st.number_input("Maximum Markup to Test (%)", value=float(markup_base + 20.0), step=1.0))
-
-price_elasticity = st.slider(
-    "Estimated Price Elasticity of Demand",
-    -3.0, 0.0, -1.2, 0.1,
-    help="How sensitive demand is to price changes. -1.0 means a 1% price drop increases demand by ~1%."
+st.info(
+    f"Best outcome at **{best_combo['Markup']:.2f}×** markup and "
+    f"**{best_combo['Volume Growth (%)']:.0f}%** volume growth → "
+    f"EBITDA margin **{best_combo['EBITDA Margin (%)']:.1f}%**."
 )
-markup_range = np.arange(markup_min, markup_max + 0.1, 2.0)
-
-
-# --- SIMULATION ---
-markup_sim = pd.DataFrame({"Markup (%)": markup_range})
-markup_sim["Price"] = base_cost * (1 + markup_sim["Markup (%)"] / 100)
-
-# Estimate demand using elasticity (relative to base)
-markup_sim["Estimated Volume"] = volume * (1 + ((markup_base - markup_sim["Markup (%)"]) / markup_base) * abs(price_elasticity))
-markup_sim["Revenue"] = markup_sim["Price"] * markup_sim["Estimated Volume"]
-markup_sim["COGS"] = base_cost * markup_sim["Estimated Volume"]
-markup_sim["OPEX"] = (opex_percent * markup_sim["Revenue"]) * (1 + opex_sensitivity / 100)
-markup_sim["EBITDA"] = markup_sim["Revenue"] - markup_sim["COGS"] - markup_sim["OPEX"]
-markup_sim["EBITDA Margin (%)"] = (markup_sim["EBITDA"] / markup_sim["Revenue"]) * 100
-
-# --- VISUALS ---
-st.line_chart(markup_sim.set_index("Markup (%)")[["EBITDA Margin (%)"]])
-st.dataframe(markup_sim[["Markup (%)", "Price", "Estimated Volume", "Revenue", "EBITDA", "EBITDA Margin (%)"]].round(2))
-
-# --- ALERT LOGIC ---
-best_markup = markup_sim.loc[markup_sim["EBITDA"].idxmax(), "Markup (%)"]
-ebitda_improvement = (
-    (markup_sim["EBITDA"].max() - markup_sim.loc[markup_sim["Markup (%)"] == markup_base, "EBITDA"].values[0])
-    / markup_sim.loc[markup_sim["Markup (%)"] == markup_base, "EBITDA"].values[0]
-    * 100
-)
-
-if best_markup < markup_base:
-    st.warning(f"📉 *Reducing markup to around {best_markup:.1f}% could potentially improve EBITDA by about {ebitda_improvement:.1f}%.*")
-elif best_markup > markup_base:
-    st.success(f"📈 *Increasing markup to around {best_markup:.1f}% could improve EBITDA by about {ebitda_improvement:.1f}%.*")
-else:
-    st.info("ℹ️ *Your current markup seems optimal under the given assumptions.*")
-
 
 # --- FOOTER ---
 st.markdown("---")
@@ -155,27 +74,8 @@ st.markdown(
     "<p style='text-align:center; font-size:14px;'>Created by <b>Ayokunle Thomas</b> – Data Analyst</p>",
     unsafe_allow_html=True
 )
-
 st.markdown(
     """
-    <style>
-    .footer-links {
-        text-align: center;
-        font-size: 12px;
-        font-style: italic;
-        color: #888888;
-    }
-    .footer-links a {
-        color: #888888;
-        text-decoration: none;
-        margin: 0 6px;
-        transition: color 0.3s ease;
-    }
-    .footer-links a:hover {
-        color: #1f77b4;
-    }
-    </style>
-
     <div class="footer-links">
         <a href="https://www.linkedin.com/in/ayokunle-thomas" target="_blank">LinkedIn</a> |
         <a href="https://github.com/ThomasAyokunle" target="_blank">GitHub</a>
@@ -183,6 +83,4 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
 st.caption("ExCare Services Pharmacy Department Pricing Calculator © 2025")
-st.caption("Business Insight Unit")
