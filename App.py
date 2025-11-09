@@ -69,17 +69,23 @@ new_gross_profit = new_revenue - new_cogs
 opex_fixed_ratio = 0.7
 opex_variable_ratio = 0.3
 
-# Calculate current OPEX per department
-current_opex = opex_percent * revenue
+# Fill missing OPEX% with 0
+df["opex%"] = df["opex%"].fillna(0)
+
+# Convert to decimal
+df["opex_percent"] = df["opex%"] / 100
+
+# Current OPEX per department
+df["current_opex"] = df["revenue"] * df["opex_percent"]
 
 # Semi-fixed OPEX applied per department
-opex_fixed = current_opex * opex_fixed_ratio
-opex_variable = current_opex * opex_variable_ratio
-opex_per_unit_variable = opex_variable / volume
+df["opex_fixed"] = df["current_opex"] * opex_fixed_ratio
+df["opex_variable"] = df["current_opex"] * opex_variable_ratio
+df["opex_per_unit_variable"] = df["opex_variable"] / df["volume sold"]
 
-# New OPEX adjusted for volume change and sensitivity
-new_opex = opex_fixed + opex_per_unit_variable * new_volume * (1 + opex_sensitivity / 100)
-
+# New OPEX adjusted for volume growth and sensitivity
+df["new_volume"] = df["volume sold"] * (1 + volume_growth / 100)
+df["new_opex"] = df["opex_fixed"] + df["opex_per_unit_variable"] * df["new_volume"] * (1 + opex_sensitivity / 100)
 
 # --- NEW P&L ---
 new_net_profit = new_gross_profit - new_opex
