@@ -155,8 +155,35 @@ This represents a **{abs(net_change):.1f}% {direction}** in profitability after 
 
 # --- FOOTER ---
 st.markdown("---")
-st.caption("*OPEX modeled as 70% fixed and 30% variable for accurate cost behavior.*")
 st.markdown(
-    "<p style='text-align:center;'>Created by <b>Ayokunle Thomas</b> – Data Analyst | ExCare Services Limited © 2025</p>",
+    "<p style='text-align:center; font-size:14px;'>Created by <b>Ayokunle Thomas</b> – Data Scientist</p>",
     unsafe_allow_html=True
 )
+st.markdown(
+    """
+    <style>
+    .footer-links {
+        text-align: center;
+        font-size: 12px;
+        font-style: italic;
+        color: #888888;
+    }
+    .footer-links a {
+        color: #888888;
+        text-decoration: none;
+        margin: 0 6px;
+        transition: color 0.3s ease;
+    }
+    .footer-links a:hover {
+        color: #1f77b4; /* Subtle blue hover */
+    }
+    </style>
+
+    <div class="footer-links">
+        <a href="https://www.linkedin.com/in/ayokunle-thomas" target="_blank">LinkedIn</a> |
+        <a href="https://github.com/ThomasAyokunle" target="_blank">GitHub</a>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+st.caption("ExCare Health Pharmacy Pricing Calculator © 2025")
