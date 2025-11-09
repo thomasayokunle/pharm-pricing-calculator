@@ -1,5 +1,8 @@
 # --- VOLUME–PRICE IMPACT & MARGIN SIMULATION ---
-st.markdown("Volume–Price Sensitivity and Margin Analysis")
+import streamlit as st
+import pandas as pd
+import numpy as np
+st.subheader("Volume–Price Sensitivity and Margin Analysis")
 
 st.caption("💡 This simulation helps assess how volume changes affect profitability at different markup levels — while keeping margins above a set minimum threshold.")
 
