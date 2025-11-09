@@ -11,7 +11,7 @@ import numpy as np
 st.set_page_config(page_title="Pharmacy Pricing P&L Sensitivity", layout="wide")
 
 # --- HEADER ---
-st.title(" Pharmacy Department Pricing & P&L Sensitivity Dashboard")
+st.title("Pharmacy Department Pricing & P&L Sensitivity Dashboard")
 st.caption("Analyze how changes in markup, sales volume, and OPEX affect gross and net profitability by department.")
 
 # --- DATA SOURCE ---
@@ -32,14 +32,13 @@ if not all(col in df.columns for col in required_cols):
 
 # --- SIDEBAR CONTROLS ---
 st.sidebar.header("⚙️ Scenario Controls")
-
 department = st.sidebar.selectbox("Select Department", df["departments"].unique())
 volume_growth = st.sidebar.slider("Projected Volume Growth (%)", -50, 300, 0, 10)
 markup = st.sidebar.slider("Proposed Markup Multiplier (×)", 0.8, 3.0, 1.2, 0.05)
 opex_sensitivity = st.sidebar.slider("OPEX Sensitivity to Volume (%)", 0, 100, 15, 5)
 margin_threshold = st.sidebar.number_input("Minimum Acceptable Net Margin (%)", 0.0, 100.0, 20.0)
 
-# --- GET DEPARTMENT DATA ---
+# --- DEPARTMENT DATA ---
 data = df[df["departments"] == department].iloc[0]
 revenue = data["revenue"]
 cogs = data["cogs"]
@@ -68,43 +67,26 @@ new_gross_profit = new_revenue - new_cogs
 # --- Semi-Fixed OPEX ---
 opex_fixed_ratio = 0.7
 opex_variable_ratio = 0.3
+new_opex = current_opex * (
+    opex_fixed_ratio +
+    opex_variable_ratio * (1 + opex_sensitivity / 100) * (new_volume / volume)
+)
 
-# Fill missing OPEX% with 0
-df["opex%"] = df["opex%"].fillna(0)
-
-# Convert to decimal
-df["opex_percent"] = df["opex%"] / 100
-
-# Current OPEX per department
-df["current_opex"] = df["revenue"] * df["opex_percent"]
-
-# Semi-fixed OPEX applied per department
-df["opex_fixed"] = df["current_opex"] * opex_fixed_ratio
-df["opex_variable"] = df["current_opex"] * opex_variable_ratio
-df["opex_per_unit_variable"] = df["opex_variable"] / df["volume sold"]
-
-# New OPEX adjusted for volume growth and sensitivity
-df["new_volume"] = df["volume sold"] * (1 + volume_growth / 100)
-df["new_opex"] = df["opex_fixed"] + df["opex_per_unit_variable"] * df["new_volume"] * (1 + opex_sensitivity / 100)
-
-# --- NEW P&L per department ---
-df["new_net_profit"] = df["new_gross_profit"] - df["new_opex"]
-df["new_gross_margin"] = np.where(df["new_revenue"] > 0,
-                                  (df["new_gross_profit"] / df["new_revenue"]) * 100, 0)
-df["new_net_margin"] = np.where(df["new_revenue"] > 0,
-                                (df["new_net_profit"] / df["new_revenue"]) * 100, 0)
-
+# --- NEW P&L ---
+new_net_profit = new_gross_profit - new_opex
+new_gross_margin = (new_gross_profit / new_revenue) * 100 if new_revenue > 0 else 0
+new_net_margin = (new_net_profit / new_revenue) * 100 if new_revenue > 0 else 0
 
 # --- ALERT ---
 if new_net_margin < margin_threshold:
-    st.error(f" Net Margin drops to {new_net_margin:.1f}%, below target ({margin_threshold}%)")
+    st.error(f"🔻 Net Margin drops to {new_net_margin:.1f}%, below target ({margin_threshold}%)")
 elif new_net_margin >= margin_threshold + 5:
-    st.success(f" Net Margin improves to {new_net_margin:.1f}%, comfortably above target.")
+    st.success(f"✅ Net Margin improves to {new_net_margin:.1f}%, comfortably above target.")
 else:
-    st.info(f" Net Margin is {new_net_margin:.1f}%, near the threshold ({margin_threshold}%).")
+    st.info(f"ℹ️ Net Margin is {new_net_margin:.1f}%, near the threshold ({margin_threshold}%).")
 
 # --- COMPARISON TABLE ---
-st.subheader(f" Department P&L Comparison: {department}")
+st.subheader(f"Department P&L Comparison: {department}")
 
 summary = pd.DataFrame({
     "Metric": [
@@ -113,9 +95,9 @@ summary = pd.DataFrame({
         "Gross Profit (₦)",
         "OPEX (₦)",
         "Net Profit (₦)",
-        #"Gross Margin (%)",
-        #"Net Margin (%)",
-       # "Markup (×)",
+        "Gross Margin (%)",
+        "Net Margin (%)",
+        "Markup (×)",
         "Volume Sold"
     ],
     "Current": [
@@ -124,9 +106,9 @@ summary = pd.DataFrame({
         current_gross_profit,
         current_opex,
         current_net_profit,
-        #current_gross_margin,
-        #current_net_margin,
-        #current_markup,
+        current_gross_margin,
+        current_net_margin,
+        current_markup,
         volume
     ],
     "Proposed": [
@@ -135,9 +117,9 @@ summary = pd.DataFrame({
         new_gross_profit,
         new_opex,
         new_net_profit,
-        #new_gross_margin,
-        #new_net_margin,
-        #markup,
+        new_gross_margin,
+        new_net_margin,
+        markup,
         new_volume
     ]
 })
@@ -147,8 +129,8 @@ summary["Change (%)"] = summary["Change (%)"].apply(lambda x: f"{x:.1f}%" if np.
 
 st.dataframe(
     summary.style.format({
-        "Current": "{:,.0f}",
-        "Proposed": "{:,.0f}",
+        "Current": "{:,.2f}",
+        "Proposed": "{:,.2f}",
         "Change (%)": "{}"
     })
 )
@@ -156,16 +138,18 @@ st.dataframe(
 # --- INSIGHT ---
 net_change = new_net_margin - current_net_margin
 direction = "increase" if net_change > 0 else "drop"
-
 st.markdown(f"""
 ### Insight Summary  
 With a **markup of ×{markup:.2f}** and **volume change of {volume_growth}%**,  
 **{department}**'s **Net Margin** moves from **{current_net_margin:.1f}% → {new_net_margin:.1f}%**,  
-while **Gross Margin** changes from **{current_gross_margin:.1f}% → {new_gross_margin:.1f}%**.  
-This represents a **{abs(net_change):.1f}% {direction}** in bottom-line profitability after realistic OPEX adjustment.
+while **Gross Margin** shifts from **{current_gross_margin:.1f}% → {new_gross_margin:.1f}%**.  
+This represents a **{abs(net_change):.1f}% {direction}** in bottom-line profitability after realistic OPEX behavior.
 """)
 
 # --- FOOTER ---
 st.markdown("---")
-st.caption("*OPEX modeled as 70% fixed and 30% variable for accurate cost behavior.*")
-st.markdown("<p style='text-align:center;'>Created by <b>Ayokunle Thomas</b> – Data Analyst | ExCare Services Limited © 2025</p>", unsafe_allow_html=True)
+st.caption("*OPEX modeled as 70% fixed and 30% variable for realistic cost behavior.*")
+st.markdown(
+    "<p style='text-align:center;'>Created by <b>Ayokunle Thomas</b> – Data Analyst | ExCare Services Limited © 2025</p>",
+    unsafe_allow_html=True
+)
