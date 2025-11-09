@@ -95,9 +95,9 @@ summary = pd.DataFrame({
         "Gross Profit (₦)",
         "OPEX (₦)",
         "Net Profit (₦)",
-        "Gross Margin (%)",
-        "Net Margin (%)",
-        "Markup (×)",
+        #"Gross Margin (%)",
+        #"Net Margin (%)",
+       # "Markup (×)",
         "Volume Sold"
     ],
     "Current": [
