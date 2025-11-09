@@ -11,7 +11,7 @@ import numpy as np
 st.set_page_config(page_title="Pharmacy Pricing P&L Sensitivity", layout="wide")
 
 # --- HEADER ---
-st.title("Pharmacy Department Pricing & P&L Sensitivity Dashboard")
+st.title(" Pharmacy Department Pricing & P&L Sensitivity Dashboard")
 st.caption("Analyze how changes in markup, sales volume, and OPEX affect gross and net profitability by department.")
 
 # --- DATA SOURCE ---
@@ -31,7 +31,7 @@ if not all(col in df.columns for col in required_cols):
     st.stop()
 
 # --- SIDEBAR CONTROLS ---
-st.sidebar.header("Scenario Controls")
+st.sidebar.header("⚙️ Scenario Controls")
 
 department = st.sidebar.selectbox("Select Department", df["departments"].unique())
 volume_growth = st.sidebar.slider("Projected Volume Growth (%)", -50, 300, 0, 10)
@@ -68,26 +68,34 @@ new_gross_profit = new_revenue - new_cogs
 # --- Semi-Fixed OPEX ---
 opex_fixed_ratio = 0.7
 opex_variable_ratio = 0.3
-new_opex = current_opex * (
-    opex_fixed_ratio + opex_variable_ratio * (1 + opex_sensitivity / 100) * (new_volume / volume)
-)
 
-# --- PROFIT & LOSS CALCULATIONS ---
-new_gross_profit = new_revenue - new_cogs
-new_net_profit = new_revenue - new_cogs - new_opex
+# Calculate current OPEX per department
+current_opex = opex_percent * revenue
 
-# (No margin percentages — only ₦ figures)
+# Semi-fixed OPEX applied per department
+opex_fixed = current_opex * opex_fixed_ratio
+opex_variable = current_opex * opex_variable_ratio
+opex_per_unit_variable = opex_variable / volume
+
+# New OPEX adjusted for volume change and sensitivity
+new_opex = opex_fixed + opex_per_unit_variable * new_volume * (1 + opex_sensitivity / 100)
+
+
+# --- NEW P&L ---
+new_net_profit = new_gross_profit - new_opex
+new_gross_margin = (new_gross_profit / new_revenue) * 100 if new_revenue > 0 else 0
+new_net_margin = (new_net_profit / new_revenue) * 100 if new_revenue > 0 else 0
 
 # --- ALERT ---
 if new_net_margin < margin_threshold:
-    st.error(f"Net Margin drops to {new_net_margin:.1f}%, below target ({margin_threshold}%)")
+    st.error(f" Net Margin drops to {new_net_margin:.1f}%, below target ({margin_threshold}%)")
 elif new_net_margin >= margin_threshold + 5:
-    st.success(f"Net Margin improves to {new_net_margin:.1f}%, comfortably above target.")
+    st.success(f" Net Margin improves to {new_net_margin:.1f}%, comfortably above target.")
 else:
-    st.info(f"Net Margin is {new_net_margin:.1f}%, near the threshold ({margin_threshold}%).")
+    st.info(f" Net Margin is {new_net_margin:.1f}%, near the threshold ({margin_threshold}%).")
 
 # --- COMPARISON TABLE ---
-st.subheader(f"Department P&L Comparison: {department}")
+st.subheader(f" Department P&L Comparison: {department}")
 
 summary = pd.DataFrame({
     "Metric": [
@@ -98,7 +106,7 @@ summary = pd.DataFrame({
         "Net Profit (₦)",
         #"Gross Margin (%)",
         #"Net Margin (%)",
-        #"Markup (×)",
+       # "Markup (×)",
         "Volume Sold"
     ],
     "Current": [
