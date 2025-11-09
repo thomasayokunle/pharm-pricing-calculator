@@ -87,10 +87,13 @@ df["opex_per_unit_variable"] = df["opex_variable"] / df["volume sold"]
 df["new_volume"] = df["volume sold"] * (1 + volume_growth / 100)
 df["new_opex"] = df["opex_fixed"] + df["opex_per_unit_variable"] * df["new_volume"] * (1 + opex_sensitivity / 100)
 
-# --- NEW P&L ---
-new_net_profit = new_gross_profit - new_opex
-new_gross_margin = (new_gross_profit / new_revenue) * 100 if new_revenue > 0 else 0
-new_net_margin = (new_net_profit / new_revenue) * 100 if new_revenue > 0 else 0
+# --- NEW P&L per department ---
+df["new_net_profit"] = df["new_gross_profit"] - df["new_opex"]
+df["new_gross_margin"] = np.where(df["new_revenue"] > 0,
+                                  (df["new_gross_profit"] / df["new_revenue"]) * 100, 0)
+df["new_net_margin"] = np.where(df["new_revenue"] > 0,
+                                (df["new_net_profit"] / df["new_revenue"]) * 100, 0)
+
 
 # --- ALERT ---
 if new_net_margin < margin_threshold:
