@@ -135,8 +135,8 @@ summary["Change (%)"] = summary["Change (%)"].apply(lambda x: f"{x:.1f}%" if np.
 
 st.dataframe(
     summary.style.format({
-        "Current": lambda x: f"₦{x:,.0f}" if summary.loc[summary['Metric'] == 'Revenue (₦)'].empty is False else f"{x:.1f}%",
-        "Proposed": lambda x: f"₦{x:,.0f}" if summary.loc[summary['Metric'] == 'Revenue (₦)'].empty is False else f"{x:.1f}%",
+        "Current": "{:,.2f}",
+        "Proposed": "{:,.2f}",
         "Change (%)": "{}"
     })
 )
