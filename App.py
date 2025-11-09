@@ -106,9 +106,9 @@ summary = pd.DataFrame({
         current_gross_profit,
         current_opex,
         current_net_profit,
-        current_gross_margin,
-        current_net_margin,
-        current_markup,
+        #current_gross_margin,
+        #current_net_margin,
+        #current_markup,
         volume
     ],
     "Proposed": [
@@ -117,9 +117,9 @@ summary = pd.DataFrame({
         new_gross_profit,
         new_opex,
         new_net_profit,
-        new_gross_margin,
-        new_net_margin,
-        markup,
+        #new_gross_margin,
+        #new_net_margin,
+        #markup,
         new_volume
     ]
 })
@@ -129,8 +129,8 @@ summary["Change (%)"] = summary["Change (%)"].apply(lambda x: f"{x:.1f}%" if np.
 
 st.dataframe(
     summary.style.format({
-        "Current": "₦{:,.0f}",
-        "Proposed": "₦{:,.0f}",
+        "Current": "{:,.0f}",
+        "Proposed": "{:,.0f}",
         "Change (%)": "{}"
     })
 )
