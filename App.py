@@ -1,7 +1,7 @@
 # --- VOLUME–PRICE IMPACT & MARGIN SIMULATION ---
 st.subheader("Volume–Price Sensitivity and Margin Analysis")
 
-st.caption("This simulation helps assess how volume changes affect profitability at different markup levels — while keeping margins above a set minimum threshold.")
+st.caption("💡 This simulation helps assess how volume changes affect profitability at different markup levels — while keeping margins above a set minimum threshold.")
 
 # Input controls
 st.sidebar.markdown("### Simulation Controls")
@@ -37,13 +37,13 @@ safe_scenarios = simulation_df[simulation_df["Meets Threshold"]]
 if not safe_scenarios.empty:
     lowest_safe_markup = safe_scenarios.groupby("Markup")["EBITDA Margin (%)"].mean().idxmin()
     st.success(
-        f"Profitability is safe. At least one markup–volume combination maintains "
+        f"✅ Profitability is safe. At least one markup–volume combination maintains "
         f"a margin above your {min_margin:.1f}% threshold.\n\n"
         f"🔹 The lowest safe markup is approximately **{lowest_safe_markup:.2f}×**."
     )
 else:
     st.error(
-        f"All tested markup–volume combinations fall below your {min_margin:.1f}% minimum margin. "
+        f"🚨 All tested markup–volume combinations fall below your {min_margin:.1f}% minimum margin. "
         f"Consider increasing markup or reducing OPEX."
     )
 
@@ -63,7 +63,7 @@ st.line_chart(simulation_df.pivot(index="Volume Growth (%)", columns="Markup", v
 best_combo = simulation_df.loc[simulation_df["EBITDA"].idxmax()]
 
 st.info(
-    f"Best outcome at **{best_combo['Markup']:.2f}×** markup and "
+    f"📊 Best outcome at **{best_combo['Markup']:.2f}×** markup and "
     f"**{best_combo['Volume Growth (%)']:.0f}%** volume growth → "
     f"EBITDA margin **{best_combo['EBITDA Margin (%)']:.1f}%**."
 )
