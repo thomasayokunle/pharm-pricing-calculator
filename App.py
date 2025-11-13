@@ -36,7 +36,7 @@ Pharm = st.sidebar.selectbox("Select Department", ["REFILL", "VACCINE"])
 df = load_sheet(Pharm)
 
 selected_product = st.sidebar.selectbox("Select Product", df["product name"].unique())
-markup = st.sidebar.slider("Markup Multiplier (×)", 1.0, 5.0, 1.5, 0.1)
+markup = st.sidebar.slider("Markup Multiplier (×)", 1.0, 5.0, 1.5, 0.05)
 custom_price = st.sidebar.number_input("Or Enter Proposed Price (₦)", min_value=0.0, value=0.0, step=500.0)
 volume = st.sidebar.slider("Projected Volume", 0, 500, 20, 5)
 opex_increase_rate = st.sidebar.slider("OPEX Volume Sensitivity (%)", 0, 100, 0, 5)
