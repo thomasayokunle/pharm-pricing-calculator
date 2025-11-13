@@ -43,8 +43,8 @@ opex_increase_rate = st.sidebar.slider("OPEX Volume Sensitivity (%)", 0, 100, 0,
 
 # --- FETCH TEST DETAILS ---
 test = df[df["product name"] == selected_product].iloc[0]
-current_price = float(test["CURRENT PRICE"])
-cogs_per_test = float(test["COGS"])
+current_price = float(test["current price"])
+cogs_per_test = float(test["cogs"])
 
 # --- HELPER FUNCTION ---
 def round100(value):
@@ -64,8 +64,8 @@ current_gross_profit = current_revenue - current_cogs
 
 # --- OPEX % HANDLING ---
 # If OPEX % column exists, read the first non-empty value and apply it.
-if "OPEX %" in df.columns:
-    opex_percent = df["OPEX %"].dropna().iloc[0] / 100
+if "opex%" in df.columns:
+    opex_percent = df["opex%"].dropna().iloc[0] / 100
 else:
     opex_percent = 0.25  # fallback default (25%)
 
