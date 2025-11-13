@@ -24,7 +24,7 @@ def load_sheet(sheet_name):
     """Loads a Google Sheet as CSV and converts numeric columns safely."""
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
     df = pd.read_csv(url)
-    df.columns = df.columns.str.strip().str.upper()
+    df.columns = df.columns.str.strip().str.lower()
     for col in df.columns:
         df[col] = pd.to_numeric(df[col], errors="ignore")
     return df
@@ -32,10 +32,10 @@ def load_sheet(sheet_name):
 # --- SIDEBAR CONTROLS ---
 st.sidebar.header("Simulation Controls")
 
-Pharm = st.sidebar.selectbox("Select Department Location", ["REFILL", "VACCINE"])
+Pharm = st.sidebar.selectbox("Select Department", ["REFILL", "VACCINE"])
 df = load_sheet(Pharm)
 
-selected_test = st.sidebar.selectbox("Select Product", df["product name"].unique())
+selected_product = st.sidebar.selectbox("Select Product", df["productname"].unique())
 markup = st.sidebar.slider("Markup Multiplier (×)", 1.0, 5.0, 1.5, 0.1)
 custom_price = st.sidebar.number_input("Or Enter Proposed Price (₦)", min_value=0.0, value=0.0, step=500.0)
 volume = st.sidebar.slider("Projected Volume", 0, 500, 20, 5)
