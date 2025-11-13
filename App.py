@@ -36,11 +36,12 @@ Pharm = st.sidebar.selectbox("Select Department", ["REFILL", "VACCINE"])
 df = load_sheet(Pharm)
 
 selected_product = st.sidebar.selectbox("Select Product", df["product name"].unique())
-markup = st.sidebar.slider("Markup Multiplier (×)", 1.0, 5.0, 1.5, 0.05)
+markup = st.sidebar.slider("Markup Multiplier (×)", 1.0, 5.0, 1.5, 0.1)
 custom_price = st.sidebar.number_input("Or Enter Proposed Price (₦)", min_value=0.0, value=0.0, step=500.0)
-base_volume = st.sidebar.number_input("Base Volume", min_value=1, value=10, step=1)
-volume_growth_rate = st.sidebar.slider("Expected Volume Growth (%)", 0, 200, 0, 5)
+volume = st.sidebar.slider("Projected Volume", 0, 500, 20, 5)
 opex_increase_rate = st.sidebar.slider("OPEX Volume Sensitivity (%)", 0, 100, 0, 5)
+
+# 🔸 NEW CONTROL: Adjustable minimum margin threshold
 min_margin_percent = st.sidebar.slider("Minimum Profit Margin (%)", 0, 50, 20, 1)
 
 # --- FETCH TEST DETAILS ---
@@ -65,40 +66,41 @@ current_cogs = cogs_per_test
 current_gross_profit = current_revenue - current_cogs
 
 # --- OPEX % HANDLING ---
+# If OPEX % column exists, read the first non-empty value and apply it.
 if "opex%" in df.columns:
     opex_percent = df["opex%"].dropna().iloc[0] / 100
 else:
     opex_percent = 0.25  # fallback default (25%)
 
 base_opex = opex_percent * current_revenue
+
 current_ebitda = current_gross_profit - base_opex
 current_margin = round((current_ebitda / current_revenue) * 100, 1) if current_revenue != 0 else 0
 
-# --- APPLY VOLUME GROWTH ---
-proposed_volume = base_volume * (1 + volume_growth_rate / 100)
-
 # --- PROPOSED SCENARIO ---
-proposed_revenue = proposed_price * proposed_volume
-proposed_cogs = cogs_per_test * proposed_volume
+proposed_revenue = proposed_price * volume
+proposed_cogs = cogs_per_test * volume
 proposed_gross_profit = proposed_revenue - proposed_cogs
 
+# Apply the same opex_percent logic with sensitivity and volume scaling
 opex_factor = 1 + (opex_increase_rate / 100)
-proposed_opex = (opex_percent * proposed_revenue) * (1 + 0.1 * math.log1p(proposed_volume / 50)) * opex_factor
+proposed_opex = (opex_percent * proposed_revenue) * (1 + 0.1 * math.log1p(volume / 50)) * opex_factor
 
 proposed_ebitda = proposed_gross_profit - proposed_opex
 proposed_margin = round((proposed_ebitda / proposed_revenue) * 100, 1) if proposed_revenue != 0 else 0
 
-# --- DYNAMIC MINIMUM MARGIN CHECK ---
-min_required_price = (proposed_cogs + proposed_opex) / (1 - (min_margin_percent / 100)) / proposed_volume
+# --- MINIMUM MARGIN CHECK (Dynamic) ---
+min_required_price = (proposed_cogs + proposed_opex) / (1 - (min_margin_percent / 100)) / volume
 if proposed_price < min_required_price:
     proposed_price = round100(min_required_price)
-    proposed_revenue = proposed_price * proposed_volume
+    proposed_revenue = proposed_price * volume
     proposed_gross_profit = proposed_revenue - proposed_cogs
     proposed_ebitda = proposed_gross_profit - proposed_opex
     proposed_margin = round((proposed_ebitda / proposed_revenue) * 100, 1)
     price_note = f"Adjusted upward to maintain ≥ {min_margin_percent}% profit margin"
 else:
     price_note = f"Within target margin range (≥ {min_margin_percent}%)"
+
 
 # --- ROUND KEY FIGURES ---
 def r100(x): return round100(x)
@@ -110,19 +112,18 @@ current_ebitda, proposed_ebitda = r100(current_ebitda), r100(proposed_ebitda)
 # --- COMPARISON TABLE ---
 comparison = pd.DataFrame({
     "Metric": [
-        "Volume (Units)", "Revenue (₦)", "COGS (₦)", "Gross Profit (₦)",
+        "Revenue (₦)", "COGS (₦)", "Gross Profit (₦)",
         "OPEX (₦)", "EBITDA (₦)", "Profit Margin (%)"
     ],
     "Current": [
-        base_volume, current_revenue, current_cogs, current_gross_profit,
+        current_revenue, current_cogs, current_gross_profit,
         base_opex, current_ebitda, current_margin
     ],
     "Proposed": [
-        proposed_volume, proposed_revenue, proposed_cogs, proposed_gross_profit,
+        proposed_revenue, proposed_cogs, proposed_gross_profit,
         proposed_opex, proposed_ebitda, proposed_margin
     ],
     "Change": [
-        proposed_volume - base_volume,
         proposed_revenue - current_revenue,
         proposed_cogs - current_cogs,
         proposed_gross_profit - current_gross_profit,
@@ -134,6 +135,8 @@ comparison = pd.DataFrame({
 
 # --- DISPLAY TABLE ---
 st.subheader(f"Pricing Simulation: {selected_product}")
+
+# Apply numeric formatting only to numeric columns
 st.dataframe(
     comparison.style.format({
         "Current": "{:,.0f}",
@@ -143,15 +146,48 @@ st.dataframe(
     use_container_width=True
 )
 
+# --- TEST OVERVIEW TABLE (Current vs Proposed) ---
+#df["PROPOSED PRICE"] = df["COGS"] * markup
+#df["DIFFERENCE (₦)"] = df["PROPOSED PRICE"] - df["CURRENT PRICE"]
+
+#overview = df[["TEST NAME", "CURRENT PRICE", "PROPOSED PRICE", "DIFFERENCE (₦)"]]
+#overview["PROPOSED PRICE"] = overview["PROPOSED PRICE"].apply(round100)
+#overview["DIFFERENCE (₦)"] = overview["DIFFERENCE (₦)"].apply(round100)
+
+#st.subheader("Test Overview – Current vs Proposed Pricing")
+# Format only numeric columns safely
+#st.dataframe(
+ #   overview.style.format({
+  #      col: "{:,.0f}" for col in overview.select_dtypes(include=["number"]).columns
+   # }),
+    #use_container_width=True
+#)
+
+
 # --- SUMMARY ---
 st.markdown(f"""
 **Summary Insight**  
-At a proposed price of **₦{proposed_price:,.0f}**, volume grows by **{volume_growth_rate}%** to **{proposed_volume:.0f} units**.  
+At a proposed price of **₦{proposed_price:,.0f}**, Revenue and COGS scale with **{volume} tests**.  
 EBITDA margin moves from **{current_margin:.1f}%** to **{proposed_margin:.1f}%**.  
-OPEX rises with sensitivity **{opex_increase_rate}%**, from ₦{base_opex:,.0f} to ₦{proposed_opex:,.0f}.  
+OPEX increases by **{opex_increase_rate}%** sensitivity for higher volumes, rising from 
+₦{base_opex:,.0f} to ₦{proposed_opex:,.0f}.  
 {price_note}
 """)
-st.caption("*Volume growth simulates how scaling up sales affects profitability and cost behavior.*")
+st.caption(" *Opex Sensitivity controls how much operating cost grows as volume increases.*")
+
+# --- VOLUME SIMULATION (EBITDA vs Volume) ---
+st.subheader("Volume Projection (EBITDA Impact)")
+
+projection = pd.DataFrame({
+    "Volume": range(1, volume + 1),
+    "Total Revenue": [proposed_price * v for v in range(1, volume + 1)],
+    "Total EBITDA": [
+        (proposed_price * v - cogs_per_test * v -
+         0.25 * proposed_price * v * (1 + (opex_increase_rate / 100)))
+        for v in range(1, volume + 1)
+    ]
+})
+st.line_chart(projection.set_index("Volume"))
 
 # --- FOOTER ---
 st.markdown("---")
@@ -175,9 +211,10 @@ st.markdown(
         transition: color 0.3s ease;
     }
     .footer-links a:hover {
-        color: #1f77b4;
+        color: #1f77b4; /* Subtle blue hover */
     }
     </style>
+
     <div class="footer-links">
         <a href="https://www.linkedin.com/in/ayokunle-thomas" target="_blank">LinkedIn</a> |
         <a href="https://github.com/ThomasAyokunle" target="_blank">GitHub</a>
