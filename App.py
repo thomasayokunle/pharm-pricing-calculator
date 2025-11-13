@@ -42,7 +42,7 @@ volume = st.sidebar.slider("Projected Volume", 0, 500, 20, 5)
 opex_increase_rate = st.sidebar.slider("OPEX Volume Sensitivity (%)", 0, 100, 0, 5)
 
 # --- FETCH TEST DETAILS ---
-test = df[df["product name"] == selected_test].iloc[0]
+test = df[df["product name"] == selected_product].iloc[0]
 current_price = float(test["CURRENT PRICE"])
 cogs_per_test = float(test["COGS"])
 
