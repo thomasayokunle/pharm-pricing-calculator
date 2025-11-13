@@ -41,6 +41,9 @@ custom_price = st.sidebar.number_input("Or Enter Proposed Price (₦)", min_valu
 volume = st.sidebar.slider("Projected Volume", 0, 500, 20, 5)
 opex_increase_rate = st.sidebar.slider("OPEX Volume Sensitivity (%)", 0, 100, 0, 5)
 
+# 🔸 NEW CONTROL: Adjustable minimum margin threshold
+min_margin_percent = st.sidebar.slider("Minimum Profit Margin (%)", 0, 50, 20, 1)
+
 # --- FETCH TEST DETAILS ---
 test = df[df["product name"] == selected_product].iloc[0]
 current_price = float(test["current price"])
@@ -86,17 +89,17 @@ proposed_opex = (opex_percent * proposed_revenue) * (1 + 0.1 * math.log1p(volume
 proposed_ebitda = proposed_gross_profit - proposed_opex
 proposed_margin = round((proposed_ebitda / proposed_revenue) * 100, 1) if proposed_revenue != 0 else 0
 
-# --- 20% MINIMUM MARGIN CHECK ---
-min_required_price = (proposed_cogs + proposed_opex) / (1 - 0.2) / volume
+# --- MINIMUM MARGIN CHECK (Dynamic) ---
+min_required_price = (proposed_cogs + proposed_opex) / (1 - (min_margin_percent / 100)) / volume
 if proposed_price < min_required_price:
     proposed_price = round100(min_required_price)
     proposed_revenue = proposed_price * volume
     proposed_gross_profit = proposed_revenue - proposed_cogs
     proposed_ebitda = proposed_gross_profit - proposed_opex
     proposed_margin = round((proposed_ebitda / proposed_revenue) * 100, 1)
-    price_note = "Adjusted upward to maintain ≥ 20% profit margin"
+    price_note = f"Adjusted upward to maintain ≥ {min_margin_percent}% profit margin"
 else:
-    price_note = "Within target margin range"
+    price_note = f"Within target margin range (≥ {min_margin_percent}%)"
 
 # --- ROUND KEY FIGURES ---
 def r100(x): return round100(x)
