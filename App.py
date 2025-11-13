@@ -130,7 +130,7 @@ comparison = pd.DataFrame({
 })
 
 # --- DISPLAY TABLE ---
-st.subheader(f"Pricing Simulation: {selected_test}")
+st.subheader(f"Pricing Simulation: {selected_product}")
 
 # Apply numeric formatting only to numeric columns
 st.dataframe(
