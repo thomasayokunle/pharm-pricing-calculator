@@ -167,7 +167,7 @@ st.dataframe(
 # --- SUMMARY ---
 st.markdown(f"""
 **Summary Insight**  
-At a proposed price of **₦{proposed_price:,.0f}**, Revenue and COGS scale with **{volume} tests**.  
+At a proposed price of **₦{proposed_price:,.0f}**, Revenue and COGS scale with **{volume} proposed volume**.  
 EBITDA margin moves from **{current_margin:.1f}%** to **{proposed_margin:.1f}%**.  
 OPEX increases by **{opex_increase_rate}%** sensitivity for higher volumes, rising from 
 ₦{base_opex:,.0f} to ₦{proposed_opex:,.0f}.  
