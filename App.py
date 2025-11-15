@@ -110,6 +110,7 @@ else:
 def r50(x): return round50(x)
 current_revenue, proposed_revenue = r50(current_revenue), r50(proposed_revenue)
 current_cogs, proposed_cogs = r50(current_cogs), r50(proposed_cogs)
+current_gross_profit, proposed_gross_profit = r50(current_gross_profit), r50(proposed_gross_profit)
 base_opex, proposed_opex = r50(base_opex), r50(proposed_opex)
 current_ebitda, proposed_ebitda = r50(current_ebitda), r50(proposed_ebitda)
 
