@@ -54,15 +54,15 @@ current_price = float(product["Current Price"])
 cogs_per_product = float(product["Cogs"])
 
 # --- HELPER FUNCTION ---
-def round100(value):
+def round50(value):
     try:
-        return int(math.ceil(value / 100.0)) * 100
+        return int(round(value / 50.0)) * 50
     except:
         return 0
 
 # --- PRICE CALCULATIONS ---
 proposed_price = custom_price if custom_price > 0 else cogs_per_product * markup
-proposed_price = round100(proposed_price)
+proposed_price = round50(proposed_price)
 
 # --- CURRENT SCENARIO ---
 current_revenue = current_price
@@ -97,7 +97,7 @@ proposed_margin = round((proposed_ebitda / proposed_revenue) * 100, 1) if propos
 # --- MINIMUM MARGIN CHECK (Dynamic) ---
 min_required_price = (proposed_cogs + proposed_opex) / (1 - (min_margin_percent / 100)) / volume if volume > 0 else 0
 if proposed_price < min_required_price:
-    proposed_price = round100(min_required_price)
+    proposed_price = round50(min_required_price)
     proposed_revenue = proposed_price * volume
     proposed_gross_profit = proposed_revenue - proposed_cogs
     proposed_ebitda = proposed_gross_profit - proposed_opex
@@ -107,11 +107,11 @@ else:
     price_note = f"✅ Within target margin range (≥ {min_margin_percent}%)"
 
 # --- ROUND KEY FIGURES ---
-def r100(x): return round100(x)
-current_revenue, proposed_revenue = r100(current_revenue), r100(proposed_revenue)
-current_cogs, proposed_cogs = r100(current_cogs), r100(proposed_cogs)
-base_opex, proposed_opex = r100(base_opex), r100(proposed_opex)
-current_ebitda, proposed_ebitda = r100(current_ebitda), r100(proposed_ebitda)
+def r50(x): return round50(x)
+current_revenue, proposed_revenue = r50(current_revenue), r50(proposed_revenue)
+current_cogs, proposed_cogs = r50(current_cogs), r50(proposed_cogs)
+base_opex, proposed_opex = r50(base_opex), r50(proposed_opex)
+current_ebitda, proposed_ebitda = r50(current_ebitda), r50(proposed_ebitda)
 
 # --- COMPARISON TABLE ---
 comparison = pd.DataFrame({
