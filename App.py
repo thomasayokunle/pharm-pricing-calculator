@@ -87,9 +87,9 @@ proposed_revenue = proposed_price * volume
 proposed_cogs = cogs_per_product * volume
 proposed_gross_profit = proposed_revenue - proposed_cogs
 
-# Apply the same opex_percent logic with sensitivity and volume scaling
+# Simple linear OPEX scaling for routine pharmacy operations
 opex_factor = 1 + (opex_increase_rate / 100)
-proposed_opex = (opex_percent * proposed_revenue) * (1 + 0.1 * math.log1p(volume / 50)) * opex_factor
+proposed_opex = (opex_percent * proposed_revenue) * opex_factor
 
 proposed_ebitda = proposed_gross_profit - proposed_opex
 proposed_margin = round((proposed_ebitda / proposed_revenue) * 100, 1) if proposed_revenue != 0 else 0
@@ -110,7 +110,6 @@ else:
 def r50(x): return round50(x)
 current_revenue, proposed_revenue = r50(current_revenue), r50(proposed_revenue)
 current_cogs, proposed_cogs = r50(current_cogs), r50(proposed_cogs)
-current_gross_profit, proposed_gross_profit = r50(current_gross_profit), r50(proposed_gross_profit)
 base_opex, proposed_opex = r50(base_opex), r50(proposed_opex)
 current_ebitda, proposed_ebitda = r50(current_ebitda), r50(proposed_ebitda)
 
@@ -171,7 +170,7 @@ projection = pd.DataFrame({
     "Total Revenue": [proposed_price * v for v in range(1, volume + 1)],
     "Total EBITDA": [
         (proposed_price * v - cogs_per_product * v -
-         opex_percent * proposed_price * v * (1 + 0.1 * math.log1p(v / 50)) * (1 + (opex_increase_rate / 100)))
+         (opex_percent * proposed_price * v) * (1 + (opex_increase_rate / 100)))
         for v in range(1, volume + 1)
     ]
 })
