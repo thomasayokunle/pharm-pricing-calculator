@@ -11,9 +11,9 @@ import numpy as np
 st.set_page_config(page_title="ExCare Pharmacy Pricing Calculator", layout="wide")
 
 # --- HEADER ---
-st.title("💊 Pharmacy Pricing Calculator")
+st.title("Pharmacy Pricing Calculator")
 st.markdown("""
-Test pricing scenarios for partner negotiations. Compare different prices and volumes 
+Test pricing scenarios for negotiations. Compare different prices and volumes 
 to find the optimal balance between competitiveness and profitability.
 """)
 
@@ -37,7 +37,7 @@ def round50(value):
         return 0
 
 # --- SIDEBAR CONTROLS ---
-st.sidebar.header("🎯 Scenario Settings")
+st.sidebar.header("Scenario Settings")
 
 pharm = st.sidebar.selectbox("Department", ["REFILL", "VACCINE"])
 df = load_sheet(pharm)
@@ -45,18 +45,18 @@ df = load_sheet(pharm)
 selected_product = st.sidebar.selectbox("Product", df["Product Name"].unique())
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("💰 Pricing Options")
+st.sidebar.subheader("Pricing Options")
 markup = st.sidebar.slider("Markup Multiplier (×)", 1.0, 5.0, 1.5, 0.05)
 custom_price = st.sidebar.number_input("Custom Price (₦)", min_value=0.0, value=0.0, step=50.0)
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("📊 Volume & Costs")
-volume = st.sidebar.slider("Projected Volume (units)", 1, 500, 20, 5)
+st.sidebar.subheader("Volume & Costs")
+volume = st.sidebar.slider("Projected Volume (units)", 0, 500, 20, 5)
 opex_adjustment = st.sidebar.slider("OPEX Adjustment (%)", -50, 100, 0, 5, 
-                                    help="Adjust operating costs up or down (e.g., +20% for complex handling, -10% for efficiency gains)")
+                                    help="Extra costs beyond normal operations, like special storage, additional staff,or extra logistics fee")
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🎯 Target Margin")
+st.sidebar.subheader("Target Margin")
 min_margin_percent = st.sidebar.slider("Minimum Net Margin (%)", 0, 50, 20, 1)
 
 # --- FETCH PRODUCT DETAILS ---
@@ -136,7 +136,7 @@ with col4:
 st.markdown("---")
 
 # --- PER UNIT COMPARISON ---
-st.subheader("📋 Per Unit Economics")
+st.subheader("Per Unit Economics")
 
 per_unit_comparison = pd.DataFrame({
     "Metric": [
@@ -183,7 +183,7 @@ st.dataframe(
 )
 
 # --- TOTAL VOLUME SUMMARY ---
-st.subheader("📦 Total Volume Impact")
+st.subheader("Total Volume Impact")
 
 col1, col2 = st.columns(2)
 
@@ -206,46 +206,46 @@ with col2:
     """)
 
 # --- BREAK-EVEN ANALYSIS ---
-st.markdown("---")
-st.subheader("📊 Break-Even Analysis")
+#st.markdown("---")
+#st.subheader("📊 Break-Even Analysis")
 
 # Calculate break-even volume at different margin targets
-margin_targets = [0, 10, 15, 20, 25, 30]
-breakeven_volumes = []
+#margin_targets = [0, 10, 15, 20, 25, 30]
+#breakeven_volumes = []
 
-for target in margin_targets:
-    if target == 0:
+#for target in margin_targets:
+ #   if target == 0:
         # Break-even = cover COGS + OPEX only
-        be_vol = 1 if proposed_ebitda_per_unit >= 0 else 0
-    else:
+  #      be_vol = 1 if proposed_ebitda_per_unit >= 0 else 0
+   # else:
         # Need to solve: (Price - COGS - OPEX) / Price = Target%
         # This is already calculated per unit, so if per-unit margin meets target, volume=1
-        be_vol = 1 if proposed_margin >= target else 0
-    breakeven_volumes.append(be_vol if be_vol > 0 else "N/A")
+    #    be_vol = 1 if proposed_margin >= target else 0
+    #breakeven_volumes.append(be_vol if be_vol > 0 else "N/A")
 
-breakeven_df = pd.DataFrame({
-    "Target Margin": [f"{t}%" for t in margin_targets],
-    "Current Price": [f"₦{current_price:,.0f}"] * len(margin_targets),
-    "Proposed Price": [f"₦{proposed_price_per_unit:,.0f}"] * len(margin_targets),
-    "Achievable?": ["✅" if proposed_margin >= t else "❌" for t in margin_targets]
-})
+#breakeven_df = pd.DataFrame({
+ #   "Target Margin": [f"{t}%" for t in margin_targets],
+  #  "Current Price": [f"₦{current_price:,.0f}"] * len(margin_targets),
+   # "Proposed Price": [f"₦{proposed_price_per_unit:,.0f}"] * len(margin_targets),
+    #"Achievable?": ["✅" if proposed_margin >= t else "❌" for t in margin_targets]
+#})
 
-st.dataframe(breakeven_df, use_container_width=True)
+#st.dataframe(breakeven_df, use_container_width=True)
 
 # --- VOLUME SIMULATION ---
-st.markdown("---")
-st.subheader("📈 Volume Projection (EBITDA Growth)")
+#st.markdown("---")
+#st.subheader("📈 Volume Projection (EBITDA Growth)")
 
-max_vol = max(volume, 100)
-projection = pd.DataFrame({
-    "Volume": range(1, max_vol + 1),
-    "Total Revenue": [proposed_price_per_unit * v for v in range(1, max_vol + 1)],
-    "Total EBITDA": [
-        proposed_ebitda_per_unit * v for v in range(1, max_vol + 1)
-    ]
-})
+#max_vol = max(volume, 100)
+#projection = pd.DataFrame({
+ #   "Volume": range(1, max_vol + 1),
+  #  "Total Revenue": [proposed_price_per_unit * v for v in range(1, max_vol + 1)],
+   # "Total EBITDA": [
+    #    proposed_ebitda_per_unit * v for v in range(1, max_vol + 1)
+    #]
+#})
 
-st.line_chart(projection.set_index("Volume"))
+#st.line_chart(projection.set_index("Volume"))
 
 # --- PRICING RECOMMENDATIONS ---
 st.markdown("---")
