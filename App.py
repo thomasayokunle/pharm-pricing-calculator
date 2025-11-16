@@ -1,5 +1,5 @@
 # ==============================================================
-# Pharmacy Pricing Calculator (Using Google Sheet)
+# Pharmacy Pricing Calculator (Marketing Edition)
 # ==============================================================
 
 import streamlit as st
@@ -11,10 +11,10 @@ import numpy as np
 st.set_page_config(page_title="ExCare Pharmacy Pricing Calculator", layout="wide")
 
 # --- HEADER ---
-st.title("Pharmacy Pricing Calculator")
+st.title("💊 Pharmacy Pricing Calculator")
 st.markdown("""
-This calculator estimates and compares pricing scenarios for our pharmacy products.  
-It helps us understand how Pricing, OPEX, and Volume affect Profitability.
+Test pricing scenarios for partner negotiations. Compare different prices and volumes 
+to find the optimal balance between competitiveness and profitability.
 """)
 
 # --- GOOGLE SHEET SETUP ---
@@ -24,160 +24,260 @@ def load_sheet(sheet_name):
     """Loads a Google Sheet as CSV and converts numeric columns safely."""
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
     df = pd.read_csv(url)
-    # Standardize column names to title case and strip whitespace
     df.columns = df.columns.str.strip().str.title()
     for col in df.columns:
         df[col] = pd.to_numeric(df[col], errors="ignore")
     return df
 
-# --- SIDEBAR CONTROLS ---
-st.sidebar.header("Simulation Controls")
-
-pharm = st.sidebar.selectbox("Select Department", ["REFILL", "VACCINE"])
-df = load_sheet(pharm)
-
-# Display available columns for debugging (optional - can remove later)
-# st.sidebar.write("Available columns:", list(df.columns))
-
-selected_product = st.sidebar.selectbox("Select Product", df["Product Name"].unique())
-markup = st.sidebar.slider("Markup Multiplier (×)", 1.0, 5.0, 1.5, 0.05)
-custom_price = st.sidebar.number_input("Or Enter Proposed Price (₦)", min_value=0.0, value=0.0, step=500.0)
-volume = st.sidebar.slider("Projected Volume", 0, 500, 20, 5)
-opex_increase_rate = st.sidebar.slider("OPEX Volume Sensitivity (%)", 0, 100, 0, 5)
-
-# 🔸 Adjustable minimum margin threshold
-min_margin_percent = st.sidebar.slider("Minimum Profit Margin (%)", 0, 50, 20, 1)
-
-# --- FETCH PRODUCT DETAILS ---
-product = df[df["Product Name"] == selected_product].iloc[0]
-current_price = float(product["Current Price"])
-cogs_per_product = float(product["Cogs"])
-
-# --- HELPER FUNCTION ---
 def round50(value):
+    """Round to nearest 50 for clean pricing."""
     try:
         return int(round(value / 50.0)) * 50
     except:
         return 0
 
-# --- PRICE CALCULATIONS ---
-proposed_price = custom_price if custom_price > 0 else cogs_per_product * markup
-proposed_price = round50(proposed_price)
+# --- SIDEBAR CONTROLS ---
+st.sidebar.header("🎯 Scenario Settings")
 
-# --- CURRENT SCENARIO ---
-current_revenue = current_price
-current_cogs = cogs_per_product
-current_gross_profit = current_revenue - current_cogs
+pharm = st.sidebar.selectbox("Department", ["REFILL", "VACCINE"])
+df = load_sheet(pharm)
 
-# --- OPEX % HANDLING ---
-# If OPEX % column exists, read the first non-empty value and apply it.
+selected_product = st.sidebar.selectbox("Product", df["Product Name"].unique())
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("💰 Pricing Options")
+markup = st.sidebar.slider("Markup Multiplier (×)", 1.0, 5.0, 1.5, 0.05)
+custom_price = st.sidebar.number_input("Custom Price (₦)", min_value=0.0, value=0.0, step=50.0)
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("📊 Volume & Costs")
+volume = st.sidebar.slider("Projected Volume (units)", 1, 500, 20, 5)
+opex_adjustment = st.sidebar.slider("OPEX Adjustment (%)", -50, 100, 0, 5, 
+                                    help="Adjust operating costs up or down (e.g., +20% for complex handling, -10% for efficiency gains)")
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("🎯 Target Margin")
+min_margin_percent = st.sidebar.slider("Minimum Net Margin (%)", 0, 50, 20, 1)
+
+# --- FETCH PRODUCT DETAILS ---
+product = df[df["Product Name"] == selected_product].iloc[0]
+current_price = float(product["Current Price"])
+cogs_per_unit = float(product["Cogs"])
+
+# Get OPEX % from sheet
 if "Opex%" in df.columns or "Opex %" in df.columns:
     opex_col = "Opex%" if "Opex%" in df.columns else "Opex %"
     opex_percent = df[opex_col].dropna().iloc[0] / 100
 else:
     opex_percent = 0.25  # fallback default (25%)
 
-base_opex = opex_percent * current_revenue
-
-current_ebitda = current_gross_profit - base_opex
-current_margin = round((current_ebitda / current_revenue) * 100, 1) if current_revenue != 0 else 0
-
-# --- PROPOSED SCENARIO ---
-proposed_revenue = proposed_price * volume
-proposed_cogs = cogs_per_product * volume
-proposed_gross_profit = proposed_revenue - proposed_cogs
-
-# Simple linear OPEX scaling for routine pharmacy operations
-opex_factor = 1 + (opex_increase_rate / 100)
-proposed_opex = (opex_percent * proposed_revenue) * opex_factor
-
-proposed_ebitda = proposed_gross_profit - proposed_opex
-proposed_margin = round((proposed_ebitda / proposed_revenue) * 100, 1) if proposed_revenue != 0 else 0
-
-# --- MINIMUM MARGIN CHECK (Dynamic) ---
-min_required_price = (proposed_cogs + proposed_opex) / (1 - (min_margin_percent / 100)) / volume if volume > 0 else 0
-if proposed_price < min_required_price:
-    proposed_price = round50(min_required_price)
-    proposed_revenue = proposed_price * volume
-    proposed_gross_profit = proposed_revenue - proposed_cogs
-    proposed_ebitda = proposed_gross_profit - proposed_opex
-    proposed_margin = round((proposed_ebitda / proposed_revenue) * 100, 1) if proposed_revenue != 0 else 0
-    price_note = f"⚠️ Price adjusted to ₦{proposed_price:,.0f} to maintain ≥ {min_margin_percent}% profit margin"
+# --- PRICE CALCULATION ---
+if custom_price > 0:
+    proposed_price_per_unit = round50(custom_price)
 else:
-    price_note = f"✅ Within target margin range (≥ {min_margin_percent}%)"
+    proposed_price_per_unit = round50(cogs_per_unit * markup)
 
-# --- ROUND KEY FIGURES ---
-def r50(x): return round50(x)
-current_revenue, proposed_revenue = r50(current_revenue), r50(proposed_revenue)
-current_cogs, proposed_cogs = r50(current_cogs), r50(proposed_cogs)
-base_opex, proposed_opex = r50(base_opex), r50(proposed_opex)
-current_ebitda, proposed_ebitda = r50(current_ebitda), r50(proposed_ebitda)
+# --- CURRENT SCENARIO (Per Unit) ---
+current_revenue_per_unit = current_price
+current_cogs_per_unit = cogs_per_unit
+current_gross_profit_per_unit = current_revenue_per_unit - current_cogs_per_unit
+current_opex_per_unit = opex_percent * current_revenue_per_unit
+current_ebitda_per_unit = current_gross_profit_per_unit - current_opex_per_unit
+current_margin = round((current_ebitda_per_unit / current_revenue_per_unit) * 100, 1) if current_revenue_per_unit != 0 else 0
 
-# --- COMPARISON TABLE ---
-comparison = pd.DataFrame({
+# --- PROPOSED SCENARIO (Total for Volume) ---
+opex_factor = 1 + (opex_adjustment / 100)
+proposed_opex_per_unit = (opex_percent * proposed_price_per_unit) * opex_factor
+
+# Per unit calculations
+proposed_revenue_per_unit = proposed_price_per_unit
+proposed_cogs_per_unit = cogs_per_unit
+proposed_gross_profit_per_unit = proposed_revenue_per_unit - proposed_cogs_per_unit
+proposed_ebitda_per_unit = proposed_gross_profit_per_unit - proposed_opex_per_unit
+proposed_margin = round((proposed_ebitda_per_unit / proposed_revenue_per_unit) * 100, 1) if proposed_revenue_per_unit != 0 else 0
+
+# Total calculations (for volume)
+total_revenue = proposed_price_per_unit * volume
+total_cogs = cogs_per_unit * volume
+total_gross_profit = total_revenue - total_cogs
+total_opex = proposed_opex_per_unit * volume
+total_ebitda = total_gross_profit - total_opex
+
+# --- MINIMUM MARGIN CHECK ---
+min_required_price = (cogs_per_unit + proposed_opex_per_unit) / (1 - (min_margin_percent / 100))
+margin_gap = proposed_price_per_unit - min_required_price
+
+if margin_gap < 0:
+    st.warning(f"⚠️ **Price below minimum threshold!** Need ₦{round50(min_required_price):,.0f} to achieve {min_margin_percent}% margin.")
+    price_status = "🔴 Below Target"
+    price_status_color = "red"
+elif margin_gap < 500:
+    price_status = "🟡 At Minimum"
+    price_status_color = "orange"
+else:
+    price_status = "🟢 Healthy Margin"
+    price_status_color = "green"
+
+# --- MAIN DISPLAY ---
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    st.metric("Proposed Price", f"₦{proposed_price_per_unit:,.0f}", 
+              f"{((proposed_price_per_unit - current_price) / current_price * 100):+.1f}%")
+with col2:
+    st.metric("Net Margin", f"{proposed_margin:.1f}%", 
+              f"{(proposed_margin - current_margin):+.1f}%")
+with col3:
+    st.metric("Total Revenue", f"₦{total_revenue:,.0f}", 
+              f"{volume} units")
+with col4:
+    st.metric("Total EBITDA", f"₦{total_ebitda:,.0f}", 
+              price_status)
+
+st.markdown("---")
+
+# --- PER UNIT COMPARISON ---
+st.subheader("📋 Per Unit Economics")
+
+per_unit_comparison = pd.DataFrame({
     "Metric": [
-        "Revenue (₦)", "COGS (₦)", "Gross Profit (₦)",
-        "OPEX (₦)", "EBITDA (₦)", "Profit Margin (%)"
+        "Price per Unit (₦)",
+        "COGS per Unit (₦)", 
+        "Gross Profit per Unit (₦)",
+        "OPEX per Unit (₦)",
+        "EBITDA per Unit (₦)",
+        "Net Margin (%)"
     ],
     "Current": [
-        current_revenue, current_cogs, current_gross_profit,
-        base_opex, current_ebitda, current_margin
+        round50(current_revenue_per_unit),
+        round50(current_cogs_per_unit),
+        round50(current_gross_profit_per_unit),
+        round50(current_opex_per_unit),
+        round50(current_ebitda_per_unit),
+        current_margin
     ],
     "Proposed": [
-        proposed_revenue, proposed_cogs, proposed_gross_profit,
-        proposed_opex, proposed_ebitda, proposed_margin
+        round50(proposed_revenue_per_unit),
+        round50(proposed_cogs_per_unit),
+        round50(proposed_gross_profit_per_unit),
+        round50(proposed_opex_per_unit),
+        round50(proposed_ebitda_per_unit),
+        proposed_margin
     ],
-    "Change": [
-        proposed_revenue - current_revenue,
-        proposed_cogs - current_cogs,
-        proposed_gross_profit - current_gross_profit,
-        proposed_opex - base_opex,
-        proposed_ebitda - current_ebitda,
+    "Difference": [
+        round50(proposed_revenue_per_unit - current_revenue_per_unit),
+        0,  # COGS stays same per unit
+        round50(proposed_gross_profit_per_unit - current_gross_profit_per_unit),
+        round50(proposed_opex_per_unit - current_opex_per_unit),
+        round50(proposed_ebitda_per_unit - current_ebitda_per_unit),
         round(proposed_margin - current_margin, 1)
     ]
 })
 
-# --- DISPLAY TABLE ---
-st.subheader(f"Pricing Simulation: {selected_product}")
-
-# Apply numeric formatting only to numeric columns
 st.dataframe(
-    comparison.style.format({
+    per_unit_comparison.style.format({
         "Current": "{:,.0f}",
         "Proposed": "{:,.0f}",
-        "Change": "{:,.0f}"
+        "Difference": lambda x: f"{x:+,.0f}" if isinstance(x, (int, float)) else x
     }),
     use_container_width=True
 )
 
-# --- SUMMARY ---
-st.markdown(f"""
-**Summary Insight**  
-At a proposed price of **₦{proposed_price:,.0f}**, Revenue and COGS scale with **{volume} units**.  
-EBITDA margin moves from **{current_margin:.1f}%** to **{proposed_margin:.1f}%**.  
-OPEX increases by **{opex_increase_rate}%** sensitivity for higher volumes, rising from 
-₦{base_opex:,.0f} to ₦{proposed_opex:,.0f}.  
+# --- TOTAL VOLUME SUMMARY ---
+st.subheader("📦 Total Volume Impact")
 
-{price_note}
-""")
-st.caption("💡 *OPEX Sensitivity controls how much operating cost grows as volume increases.*")
+col1, col2 = st.columns(2)
 
-# --- VOLUME SIMULATION (EBITDA vs Volume) ---
-st.subheader("Volume Projection (EBITDA Impact)")
+with col1:
+    st.markdown(f"""
+    **Scenario Summary:**
+    - **Volume**: {volume} units
+    - **Price per Unit**: ₦{proposed_price_per_unit:,.0f}
+    - **Total Revenue**: ₦{total_revenue:,.0f}
+    - **Total EBITDA**: ₦{total_ebitda:,.0f}
+    - **Net Margin**: {proposed_margin:.1f}%
+    """)
 
+with col2:
+    st.markdown(f"""
+    **Cost Breakdown:**
+    - **Total COGS**: ₦{total_cogs:,.0f} ({(total_cogs/total_revenue*100):.1f}%)
+    - **Total OPEX**: ₦{total_opex:,.0f} ({(total_opex/total_revenue*100):.1f}%)
+    - **Gross Margin**: {((total_gross_profit/total_revenue)*100):.1f}%
+    """)
+
+# --- BREAK-EVEN ANALYSIS ---
+st.markdown("---")
+st.subheader("📊 Break-Even Analysis")
+
+# Calculate break-even volume at different margin targets
+margin_targets = [0, 10, 15, 20, 25, 30]
+breakeven_volumes = []
+
+for target in margin_targets:
+    if target == 0:
+        # Break-even = cover COGS + OPEX only
+        be_vol = 1 if proposed_ebitda_per_unit >= 0 else 0
+    else:
+        # Need to solve: (Price - COGS - OPEX) / Price = Target%
+        # This is already calculated per unit, so if per-unit margin meets target, volume=1
+        be_vol = 1 if proposed_margin >= target else 0
+    breakeven_volumes.append(be_vol if be_vol > 0 else "N/A")
+
+breakeven_df = pd.DataFrame({
+    "Target Margin": [f"{t}%" for t in margin_targets],
+    "Current Price": [f"₦{current_price:,.0f}"] * len(margin_targets),
+    "Proposed Price": [f"₦{proposed_price_per_unit:,.0f}"] * len(margin_targets),
+    "Achievable?": ["✅" if proposed_margin >= t else "❌" for t in margin_targets]
+})
+
+st.dataframe(breakeven_df, use_container_width=True)
+
+# --- VOLUME SIMULATION ---
+st.markdown("---")
+st.subheader("📈 Volume Projection (EBITDA Growth)")
+
+max_vol = max(volume, 100)
 projection = pd.DataFrame({
-    "Volume": range(1, volume + 1),
-    "Total Revenue": [proposed_price * v for v in range(1, volume + 1)],
+    "Volume": range(1, max_vol + 1),
+    "Total Revenue": [proposed_price_per_unit * v for v in range(1, max_vol + 1)],
     "Total EBITDA": [
-        (proposed_price * v - cogs_per_product * v -
-         (opex_percent * proposed_price * v) * (1 + (opex_increase_rate / 100)))
-        for v in range(1, volume + 1)
+        proposed_ebitda_per_unit * v for v in range(1, max_vol + 1)
     ]
 })
+
 st.line_chart(projection.set_index("Volume"))
+
+# --- PRICING RECOMMENDATIONS ---
+st.markdown("---")
+st.subheader("💡 Pricing Recommendations")
+
+if proposed_margin < min_margin_percent:
+    st.error(f"""
+    **⚠️ Price Too Low**: At ₦{proposed_price_per_unit:,.0f}, margin is {proposed_margin:.1f}% (target: {min_margin_percent}%).
+    
+    **Recommended Actions:**
+    - Increase price to ₦{round50(min_required_price):,.0f}
+    - Reduce OPEX by {abs((min_required_price - proposed_price_per_unit) / proposed_price_per_unit * 100):.1f}%
+    - Negotiate volume commitments for better terms
+    """)
+elif proposed_margin < min_margin_percent + 5:
+    st.warning(f"""
+    **🟡 Tight Margin**: At ₦{proposed_price_per_unit:,.0f}, margin is {proposed_margin:.1f}% (target: {min_margin_percent}%).
+    
+    Consider adding ₦{round50((min_required_price + 200) - proposed_price_per_unit):,.0f} buffer for safety.
+    """)
+else:
+    st.success(f"""
+    **✅ Healthy Pricing**: At ₦{proposed_price_per_unit:,.0f}, margin is {proposed_margin:.1f}% ({(proposed_margin - min_margin_percent):.1f}% above target).
+    
+    - Room for negotiation: Up to ₦{round50(margin_gap * 0.5):,.0f} discount possible
+    - Competitive positioning: {'Premium' if proposed_price_per_unit > current_price * 1.2 else 'Competitive' if proposed_price_per_unit > current_price * 0.9 else 'Aggressive'}
+    """)
 
 # --- FOOTER ---
 st.markdown("---")
+st.caption("💡 **Usage Tips**: Use markup slider for quick estimates, or enter custom price for specific negotiations. OPEX adjustment accounts for special handling or efficiency improvements.")
+
 st.markdown(
     "<p style='text-align:center; font-size:14px;'>Created by <b>Ayokunle Thomas</b> – Data Scientist</p>",
     unsafe_allow_html=True
@@ -198,10 +298,9 @@ st.markdown(
         transition: color 0.3s ease;
     }
     .footer-links a:hover {
-        color: #1f77b4; /* Subtle blue hover */
+        color: #1f77b4;
     }
     </style>
-
     <div class="footer-links">
         <a href="https://www.linkedin.com/in/ayokunle-thomas" target="_blank">LinkedIn</a> |
         <a href="https://github.com/ThomasAyokunle" target="_blank">GitHub</a>
