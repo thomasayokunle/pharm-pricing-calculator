@@ -51,13 +51,15 @@ custom_price = st.sidebar.number_input("Custom Price (₦)", min_value=0.0, valu
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("Volume & Costs")
-volume = st.sidebar.slider("Projected Volume (units)", 0, 500, 20, 5)
+volume = st.sidebar.slider("Projected Volume (units)", 0, 500, 20, 5, help="Total units expected to sell. Higher volumes may justify lower prices if partner commits to bulk orders"
+)
 opex_adjustment = st.sidebar.slider("OPEX Adjustment (%)", -50, 100, 0, 5, 
                                     help="Extra costs beyond normal operations, like special storage, additional staff,or extra logistics fee")
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("Target Margin")
-min_margin_percent = st.sidebar.slider("Minimum Net Margin (%)", 0, 50, 20, 1)
+target_margin = st.sidebar.slider("Minimum Net Margin (%)", 0, 50, 20, 1, help="Your minimum acceptable profit margin. Price will be flagged if it falls below this threshold"
+)
 
 # --- FETCH PRODUCT DETAILS ---
 product = df[df["Product Name"] == selected_product].iloc[0]
@@ -249,7 +251,7 @@ with col2:
 
 # --- PRICING RECOMMENDATIONS ---
 st.markdown("---")
-st.subheader("💡 Pricing Recommendations")
+st.subheader("Pricing Recommendations")
 
 if proposed_margin < min_margin_percent:
     st.error(f"""
@@ -276,7 +278,7 @@ else:
 
 # --- FOOTER ---
 st.markdown("---")
-st.caption("💡 **Usage Tips**: Use markup slider for quick estimates, or enter custom price for specific negotiations. OPEX adjustment accounts for special handling or efficiency improvements.")
+st.caption("💡 **Usage Tips**: **Tip:** Adjust the proposed price to see how it affects profit margin and total profit.")
 
 st.markdown(
     "<p style='text-align:center; font-size:14px;'>Created by <b>Ayokunle Thomas</b> – Data Scientist</p>",
