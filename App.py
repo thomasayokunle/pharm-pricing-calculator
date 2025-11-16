@@ -106,7 +106,7 @@ total_opex = proposed_opex_per_unit * volume
 total_ebitda = total_gross_profit - total_opex
 
 # --- MINIMUM MARGIN CHECK ---
-min_required_price = (cogs_per_unit + proposed_opex_per_unit) / (1 - (min_margin_percent / 100))
+min_required_price = (cogs_per_unit + proposed_opex_per_unit) / (1 - (target_margin / 100))
 margin_gap = proposed_price_per_unit - min_required_price
 
 if margin_gap < 0:
