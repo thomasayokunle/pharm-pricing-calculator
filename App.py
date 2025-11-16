@@ -110,7 +110,7 @@ min_required_price = (cogs_per_unit + proposed_opex_per_unit) / (1 - (target_mar
 margin_gap = proposed_price_per_unit - min_required_price
 
 if margin_gap < 0:
-    st.warning(f"⚠️ **Price below minimum threshold!** Need ₦{round50(min_required_price):,.0f} to achieve {min_margin_percent}% margin.")
+    st.warning(f"⚠️ **Price below minimum threshold!** Need ₦{round50(min_required_price):,.0f} to achieve {target_margin}% margin.")
     price_status = "🔴 Below Target"
     price_status_color = "red"
 elif margin_gap < 500:
@@ -253,24 +253,24 @@ with col2:
 st.markdown("---")
 st.subheader("Pricing Recommendations")
 
-if proposed_margin < min_margin_percent:
+if proposed_margin < target_margin:
     st.error(f"""
-    **⚠️ Price Too Low**: At ₦{proposed_price_per_unit:,.0f}, margin is {proposed_margin:.1f}% (target: {min_margin_percent}%).
+    **⚠️ Price Too Low**: At ₦{proposed_price_per_unit:,.0f}, margin is {proposed_margin:.1f}% (target: {target_margin}%).
     
     **Recommended Actions:**
     - Increase price to ₦{round50(min_required_price):,.0f}
     - Reduce OPEX by {abs((min_required_price - proposed_price_per_unit) / proposed_price_per_unit * 100):.1f}%
     - Negotiate volume commitments for better terms
     """)
-elif proposed_margin < min_margin_percent + 5:
+elif proposed_margin < target_margin + 5:
     st.warning(f"""
-    **🟡 Tight Margin**: At ₦{proposed_price_per_unit:,.0f}, margin is {proposed_margin:.1f}% (target: {min_margin_percent}%).
+    **🟡 Tight Margin**: At ₦{proposed_price_per_unit:,.0f}, margin is {proposed_margin:.1f}% (target: {target_margin}%).
     
     Consider adding ₦{round50((min_required_price + 200) - proposed_price_per_unit):,.0f} buffer for safety.
     """)
 else:
     st.success(f"""
-    **✅ Healthy Pricing**: At ₦{proposed_price_per_unit:,.0f}, margin is {proposed_margin:.1f}% ({(proposed_margin - min_margin_percent):.1f}% above target).
+    **✅ Healthy Pricing**: At ₦{proposed_price_per_unit:,.0f}, margin is {proposed_margin:.1f}% ({(proposed_margin - target_margin):.1f}% above target).
     
     - Room for negotiation: Up to ₦{round50(margin_gap * 0.5):,.0f} discount possible
     - Competitive positioning: {'Premium' if proposed_price_per_unit > current_price * 1.2 else 'Competitive' if proposed_price_per_unit > current_price * 0.9 else 'Aggressive'}
