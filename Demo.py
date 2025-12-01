@@ -9,12 +9,9 @@ import pandas as pd
 st.set_page_config(page_title="Pricing Calculator Demo", layout="wide")
 
 # --- HEADER ---
-st.title("🧪 Pricing Calculator Demo")
+st.title("Pricing Calculator Demo")
 st.markdown("""
 Try out the pricing calculator with your own data. Enter your product details below to see instant profitability analysis.
-
-**Note:** This is a limited demo. The full version includes Google Sheets integration, multi-product support, 
-advanced volume modeling, and much more.
 """)
 
 st.markdown("---")
@@ -181,23 +178,12 @@ with col1:
     **Full Version Benefits:**
     - Connect directly to your Google Sheets
     - Manage hundreds of products
-    - Multiple business units
     - Real-time updates
-    - Professional interface
-    - Team collaboration
-    - Mobile access
     """)
 
 with col2:
     st.markdown("""
-    **Pricing:**
-    - Single Unit: ₦450,000 one-time
-    - Multiple Units: ₦700,000 one-time
-    - Enterprise: ₦1M - ₦1.2M
-    
-    Optional quarterly support available.
-    
-    **[Schedule a Free Demo](mailto:your-email@example.com)**
+    **[Schedule a Free Demo](https://wa.me/2349039440950)**
     """)
 
 # --- FOOTER ---
@@ -234,4 +220,5 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 st.caption("© 2025 - All Rights Reserved")
