@@ -25,7 +25,7 @@ st.subheader("Enter Your Product Details")
 col1, col2 = st.columns(2)
 
 with col1:
-    product_name = st.text_input("Product/Test Name", value="Sample Product", 
+    product_name = st.text_input("Vaccine Name", value="Sample Product", 
                                  help="Enter the name of your product or test")
     cost_price = st.number_input("Cost Price (COGS) - ₦", min_value=0, value=5000, step=100,
                                  help="Your cost to acquire or produce this product")
@@ -222,4 +222,5 @@ st.markdown(
 )
 
 st.caption("© 2025 - All Rights Reserved")
+
 
