@@ -215,10 +215,11 @@ st.markdown(
     <div class="footer-links">
         <a href="https://www.linkedin.com/in/ayokunle-thomas" target="_blank">LinkedIn</a> |
         <a href="https://github.com/ThomasAyokunle" target="_blank">GitHub</a> |
-        <a href="mailto:your-email@example.com">Contact</a>
+        <a href="mailto:thomasayokunle@gmail.com">E-mail</a>
     </div>
     """,
     unsafe_allow_html=True
 )
 
 st.caption("© 2025 - All Rights Reserved")
+
