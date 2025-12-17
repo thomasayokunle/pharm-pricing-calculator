@@ -71,7 +71,7 @@ if "Opex%" in df.columns or "Opex %" in df.columns:
     opex_col = "Opex%" if "Opex%" in df.columns else "Opex %"
     opex_percent = df[opex_col].dropna().iloc[0] / 100
 else:
-    opex_percent = 0.25  # fallback default (25%)
+    opex_percent = 0.10  # fallback default (25%)
 
 # --- PRICE CALCULATION ---
 if custom_price > 0:
