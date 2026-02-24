@@ -72,6 +72,7 @@ else:
     opex_percent = 0.10  # fallback default (25%)
 
 # --- PRICE CALCULATION ---
+opex_factor = 1 + (opex_adjustment / 100)
 denominator = 1 - (opex_percent * opex_factor) - (target_margin / 100)
 if denominator <= 0:
     st.error("OPEX% + Target Margin% exceeds 100%. Adjust your inputs.")
@@ -87,7 +88,7 @@ current_ebitda_per_unit = current_gross_profit_per_unit - current_opex_per_unit
 current_margin = round((current_ebitda_per_unit / current_revenue_per_unit) * 100, 1) if current_revenue_per_unit != 0 else 0
 
 # --- PROPOSED SCENARIO (Total for Volume) ---
-opex_factor = 1 + (opex_adjustment / 100)
+
 proposed_opex_per_unit = (opex_percent * proposed_price_per_unit) * opex_factor
 
 # Per unit calculations
