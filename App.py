@@ -42,7 +42,7 @@ st.sidebar.header("Scenario Settings")
 pharm = st.sidebar.selectbox("Department", ["REFILL", "VACCINE"])
 df = load_sheet(pharm)
 
-selected_product = st.sidebar.selectbox("Product", df["Product Name"].unique())
+selected_product = st.sidebar.multiselect("Product", df["Product Name"].unique(), default=[df["Product Name"].iloc[0]])
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("Pricing Options")
@@ -62,9 +62,9 @@ target_margin = st.sidebar.slider("Minimum Net Margin (%)", 0, 50, 20, 1, help="
 )
 
 # --- FETCH PRODUCT DETAILS ---
-product = df[df["Product Name"] == selected_product].iloc[0]
-current_price = float(product["Current Price"])
-cogs_per_unit = float(product["Cogs"])
+product = df[df["Product Name"].isin(selected_product)]
+current_price = float(product["Current Price"].mean())
+cogs_per_unit = float(product["Cogs"].mean())
 
 # Get OPEX % from sheet
 if "Opex%" in df.columns or "Opex %" in df.columns:
@@ -110,14 +110,14 @@ min_required_price = (cogs_per_unit + proposed_opex_per_unit) / (1 - (target_mar
 margin_gap = proposed_price_per_unit - min_required_price
 
 if margin_gap < 0:
-    st.warning(f"⚠️ **Price below minimum threshold!** Need ₦{round50(min_required_price):,.0f} to achieve {target_margin}% margin.")
-    price_status = "🔴 Below Target"
+    st.warning(f"**Price below minimum threshold!** Need ₦{round50(min_required_price):,.0f} to achieve {target_margin}% margin.")
+    price_status = "Below Target"
     price_status_color = "red"
 elif margin_gap < 500:
-    price_status = "🟡 At Minimum"
+    price_status = "At Minimum"
     price_status_color = "orange"
 else:
-    price_status = "🟢 Healthy Margin"
+    price_status = "Healthy Margin"
     price_status_color = "green"
 
 # --- MAIN DISPLAY ---
@@ -138,7 +138,7 @@ with col4:
 st.markdown("---")
 
 # --- PER UNIT COMPARISON ---
-st.subheader("Per Unit Economics")
+st.subheader("Average Per Unit Economics (across selected products)")
 
 per_unit_comparison = pd.DataFrame({
     "Metric": [
@@ -255,7 +255,7 @@ st.subheader("Pricing Recommendations")
 
 if proposed_margin < target_margin:
     st.error(f"""
-    **⚠️ Price Too Low**: At ₦{proposed_price_per_unit:,.0f}, margin is {proposed_margin:.1f}% (target: {target_margin}%).
+    **Price Too Low**: At ₦{proposed_price_per_unit:,.0f}, margin is {proposed_margin:.1f}% (target: {target_margin}%).
     
     **Recommended Actions:**
     - Increase price to ₦{round50(min_required_price):,.0f}
@@ -264,13 +264,13 @@ if proposed_margin < target_margin:
     """)
 elif proposed_margin < target_margin + 5:
     st.warning(f"""
-    **🟡 Tight Margin**: At ₦{proposed_price_per_unit:,.0f}, margin is {proposed_margin:.1f}% (target: {target_margin}%).
+    **Tight Margin**: At ₦{proposed_price_per_unit:,.0f}, margin is {proposed_margin:.1f}% (target: {target_margin}%).
     
     Consider adding ₦{round50((min_required_price + 200) - proposed_price_per_unit):,.0f} buffer for safety.
     """)
 else:
     st.success(f"""
-    **✅ Healthy Pricing**: At ₦{proposed_price_per_unit:,.0f}, margin is {proposed_margin:.1f}% ({(proposed_margin - target_margin):.1f}% above target).
+    **Healthy Pricing**: At ₦{proposed_price_per_unit:,.0f}, margin is {proposed_margin:.1f}% ({(proposed_margin - target_margin):.1f}% above target).
     
     - Room for negotiation: Up to ₦{round50(margin_gap * 0.5):,.0f} discount possible
     - Competitive positioning: {'Premium' if proposed_price_per_unit > current_price * 1.2 else 'Competitive' if proposed_price_per_unit > current_price * 0.9 else 'Aggressive'}
@@ -278,7 +278,7 @@ else:
 
 # --- FOOTER ---
 st.markdown("---")
-st.caption("💡 **Usage Tips**: **Tip:** Adjust the proposed price to see how it affects profit margin and total profit.")
+st.caption("**Usage Tips**: **Tip:** Adjust the proposed price to see how it affects profit margin and total profit.")
 
 st.markdown(
     "<p style='text-align:center; font-size:14px;'>Created by <b>Ayokunle Thomas</b> – Data Scientist</p>",
