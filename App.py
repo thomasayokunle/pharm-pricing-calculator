@@ -46,8 +46,6 @@ selected_product = st.sidebar.multiselect("Product", df["Product Name"].unique()
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("Pricing Options")
-markup = st.sidebar.slider("Markup Multiplier (×)", 1.0, 5.0, 1.5, 0.05)
-custom_price = st.sidebar.number_input("Custom Price (₦)", min_value=0.0, value=0.0, step=50.0)
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("Volume & Costs")
@@ -74,10 +72,11 @@ else:
     opex_percent = 0.10  # fallback default (25%)
 
 # --- PRICE CALCULATION ---
-if custom_price > 0:
-    proposed_price_per_unit = round50(custom_price)
-else:
-    proposed_price_per_unit = round50(cogs_per_unit * markup)
+denominator = 1 - (opex_percent * opex_factor) - (target_margin / 100)
+if denominator <= 0:
+    st.error("OPEX% + Target Margin% exceeds 100%. Adjust your inputs.")
+    st.stop()
+proposed_price_per_unit = round50(cogs_per_unit / denominator)
 
 # --- CURRENT SCENARIO (Per Unit) ---
 current_revenue_per_unit = current_price
