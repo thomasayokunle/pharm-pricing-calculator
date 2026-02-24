@@ -46,7 +46,7 @@ selected_product = st.sidebar.multiselect("Product", df["Product Name"].unique()
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("Pricing Options")
-
+custom_price = st.sidebar.number_input("Override Price for Negotiation (₦)", min_value=0.0, value=0.0, step=50.0, help="Leave at 0 to use auto-calculated price. Enter a value to test a negotiated price.")
 st.sidebar.markdown("---")
 st.sidebar.subheader("Volume & Costs")
 volume = st.sidebar.slider("Projected Volume (units)", 0, 500, 20, 5, help="Total units expected to sell. Higher volumes may justify lower prices if partner commits to bulk orders"
@@ -72,12 +72,20 @@ else:
     opex_percent = 0.10  # fallback default (25%)
 
 # --- PRICE CALCULATION ---
+# --- PRICE CALCULATION ---
 opex_factor = 1 + (opex_adjustment / 100)
+
 denominator = 1 - (opex_percent * opex_factor) - (target_margin / 100)
 if denominator <= 0:
     st.error("OPEX% + Target Margin% exceeds 100%. Adjust your inputs.")
     st.stop()
-proposed_price_per_unit = round50(cogs_per_unit / denominator)
+
+calculated_price = round50(cogs_per_unit / denominator)
+
+if custom_price > 0:
+    proposed_price_per_unit = round50(custom_price)
+else:
+    proposed_price_per_unit = calculated_price
 
 # --- CURRENT SCENARIO (Per Unit) ---
 current_revenue_per_unit = current_price
